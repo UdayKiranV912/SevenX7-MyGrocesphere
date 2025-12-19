@@ -36,6 +36,21 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
   const currentBrandName = brands[selectedBrandIndex].name;
   const currentVariant = variants.length > 0 ? variants[selectedVariantIndex] : undefined;
 
+  // Helper to safely render AI returned content which might be objects (fixes React Error #31)
+  const renderValue = (val: any) => {
+    if (!val) return null;
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object') {
+      return Object.entries(val)
+        .map(([key, value]) => {
+          const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          return `${label}: ${value}`;
+        })
+        .join(', ');
+    }
+    return String(val);
+  };
+
   useEffect(() => {
     let isMounted = true;
     const fetchDetails = async () => {
@@ -57,28 +72,31 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center pointer-events-none sm:p-6 sm:items-center">
-      <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md animate-fade-in pointer-events-auto" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md animate-fade-in pointer-events-auto" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg bg-[#F8FAFC] rounded-t-[40px] sm:rounded-[32px] shadow-2xl animate-slide-up overflow-hidden max-h-[94vh] flex flex-col pointer-events-auto border-t border-white/20">
+      <div className="relative w-full max-w-lg bg-white rounded-t-[40px] sm:rounded-[32px] shadow-2xl animate-slide-up overflow-hidden max-h-[94vh] flex flex-col pointer-events-auto border-t border-white/20">
         
+        {/* Header Indicator */}
         <div className="w-full flex justify-center pt-3 pb-1 shrink-0">
             <div className="w-10 h-1 bg-slate-200 rounded-full" />
         </div>
 
-        <div className="px-6 py-3 flex justify-between items-center shrink-0">
-            <button onClick={onClose} className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">✕</button>
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Product Details</span>
+        {/* Top Controls */}
+        <div className="px-6 py-2 flex justify-between items-center shrink-0">
+            <button onClick={onClose} className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors">✕</button>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Product Info</span>
             <div className="w-9" />
         </div>
 
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-2 pb-56"> 
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-2 pb-10"> 
             <div className="flex flex-col items-center text-center mb-8">
-                <div className="w-36 h-36 bg-white rounded-[40px] flex items-center justify-center text-7xl shadow-soft border-4 border-white mb-5 transform rotate-1">
+                <div className="w-32 h-32 bg-slate-50 rounded-[36px] flex items-center justify-center text-7xl shadow-inner border-4 border-white mb-5 transform rotate-1">
                     {product.emoji}
                 </div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight mb-2">{product.name}</h2>
                 <div className="flex items-center gap-4">
-                    <span className="bg-brand-light text-brand-dark px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border border-brand-DEFAULT/10">
+                    <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-100">
                         {product.category}
                     </span>
                     <span className="font-black text-2xl text-slate-900 tracking-tighter">₹{finalPrice}</span>
@@ -86,52 +104,55 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
             </div>
 
             <div className="space-y-6">
-                <div className="bg-white p-5 rounded-[28px] shadow-soft border border-slate-50">
-                    <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">About</h3>
+                {/* Description Card */}
+                <div className="bg-slate-50 p-5 rounded-[28px] border border-slate-100">
+                    <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">AI Analysis</h3>
                     {loading ? (
                         <div className="space-y-2">
-                            <div className="h-2 bg-slate-100 rounded-full w-full animate-pulse" />
-                            <div className="h-2 bg-slate-100 rounded-full w-4/5 animate-pulse" />
+                            <div className="h-2 bg-slate-200 rounded-full w-full animate-pulse" />
+                            <div className="h-2 bg-slate-200 rounded-full w-4/5 animate-pulse" />
                         </div>
                     ) : (
-                        <p className="text-xs text-slate-600 font-medium leading-relaxed">{details.description}</p>
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">{renderValue(details.description)}</p>
                     )}
                 </div>
 
+                {/* Brands Grid */}
                 {product.brands && product.brands.length > 0 && (
                     <div className="animate-fade-in">
                         <label className="text-[9px] font-black text-slate-900 uppercase tracking-widest mb-3 block ml-2">Choose Brand</label>
-                        <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-2">
+                        <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-1">
                             {brands.map((brand, idx) => (
                                 <button 
                                   key={idx} 
                                   onClick={() => setSelectedBrandIndex(idx)} 
                                   className={`px-5 py-3.5 rounded-2xl text-[11px] font-black transition-all border-2 whitespace-nowrap flex flex-col items-start min-w-[120px] ${
                                       selectedBrandIndex === idx 
-                                      ? 'bg-slate-900 text-white border-slate-900 shadow-xl' 
-                                      : 'bg-white text-slate-700 border-slate-100 hover:border-slate-300'
+                                      ? 'bg-slate-900 text-white border-slate-900 shadow-lg' 
+                                      : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'
                                   }`}
                                 >
                                   <span className="uppercase">{brand.name}</span>
-                                  <span className={`text-[9px] mt-0.5 opacity-60`}>₹{brand.price}</span>
+                                  <span className={`text-[9px] mt-0.5 ${selectedBrandIndex === idx ? 'text-white/60' : 'text-slate-400'}`}>₹{brand.price}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
                 )}
 
+                {/* Pack Size Selection */}
                 {variants.length > 0 && (
                     <div className="animate-fade-in">
-                        <label className="text-[9px] font-black text-slate-900 uppercase tracking-widest mb-3 block ml-2">Select Quantity</label>
-                        <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-2">
+                        <label className="text-[9px] font-black text-slate-900 uppercase tracking-widest mb-3 block ml-2">Pack Size</label>
+                        <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-1">
                             {variants.map((v, idx) => (
                                 <button 
                                   key={idx} 
                                   onClick={() => setSelectedVariantIndex(idx)} 
                                   className={`px-5 py-3.5 rounded-2xl text-[11px] font-black transition-all border-2 whitespace-nowrap ${
                                       selectedVariantIndex === idx 
-                                      ? 'bg-brand-DEFAULT text-white border-brand-DEFAULT shadow-xl' 
-                                      : 'bg-white text-slate-700 border-slate-100 hover:border-slate-300'
+                                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' 
+                                      : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'
                                   }`}
                                 >
                                   {v.name}
@@ -141,33 +162,38 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
                     </div>
                 )}
 
+                {/* Details Grid */}
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-emerald-50/50 p-4 rounded-[20px] border border-emerald-100/20">
-                        <h4 className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">Origin</h4>
-                        <p className="text-[10px] font-black text-slate-700 leading-tight line-clamp-2">{details.ingredients || 'Verified Source'}</p>
+                    <div className="bg-slate-50 p-4 rounded-[24px] border border-slate-100">
+                        <h4 className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Origin/Source</h4>
+                        <p className="text-[10px] font-black text-slate-800 leading-tight">
+                            {renderValue(details.ingredients) || 'Verified Fresh'}
+                        </p>
                     </div>
-                    <div className="bg-blue-50/50 p-4 rounded-[20px] border border-blue-100/20">
-                        <h4 className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-1.5">Nutrition</h4>
-                        <p className="text-[10px] font-black text-slate-700 leading-tight line-clamp-2">{details.nutrition || 'Balanced Grade'}</p>
+                    <div className="bg-slate-50 p-4 rounded-[24px] border border-slate-100">
+                        <h4 className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Nutritional Info</h4>
+                        <p className="text-[10px] font-black text-slate-800 leading-tight">
+                            {renderValue(details.nutrition) || 'Standard Grade'}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
 
-        {/* Sticky Action Bar */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 pb-10 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.05)] border-t border-slate-100 flex flex-col gap-3 z-[210]">
+        {/* Bottom Action Bar */}
+        <div className="p-6 bg-white border-t border-slate-100 flex flex-col gap-4 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.04)] pb-8">
             <div className="flex items-center gap-3">
-                <div className="flex items-center bg-slate-50 p-1.5 rounded-2xl border border-slate-100 flex-1">
+                <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200 flex-1">
                     <button 
                       onClick={() => setQuantity(q => Math.max(1, q-1))} 
-                      className="w-11 h-11 bg-white rounded-xl shadow-sm text-xl font-black text-slate-800 active:scale-90 flex items-center justify-center border border-slate-100"
+                      className="w-11 h-11 bg-white rounded-xl shadow-sm text-xl font-black text-slate-900 active:scale-90 flex items-center justify-center border border-slate-100"
                     >
                       −
                     </button>
                     <span className="flex-1 text-center text-base font-black text-slate-900 tabular-nums">{quantity}</span>
                     <button 
                       onClick={() => setQuantity(q => q+1)} 
-                      className="w-11 h-11 bg-white rounded-xl shadow-sm text-xl font-black text-slate-800 active:scale-90 flex items-center justify-center border border-slate-100"
+                      className="w-11 h-11 bg-white rounded-xl shadow-sm text-xl font-black text-slate-900 active:scale-90 flex items-center justify-center border border-slate-100"
                     >
                       +
                     </button>

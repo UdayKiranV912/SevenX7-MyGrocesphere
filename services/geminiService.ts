@@ -7,7 +7,7 @@ export const generateProductDetails = async (productName: string): Promise<Parti
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Provide a short description, common ingredients, and brief nutrition info for ${productName} as a JSON object with keys: description, ingredients, nutrition.`,
+      contents: `Provide a short description, common ingredients, and brief nutrition info for ${productName} as a JSON object with keys: description, ingredients, nutrition. IMPORTANT: Values for description, ingredients, and nutrition MUST BE STRINGS, not objects.`,
       config: {
         responseMimeType: "application/json"
       }

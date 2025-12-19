@@ -69,15 +69,15 @@ export const ShopPage: React.FC = () => {
   return (
     <div className="pb-40 animate-fade-in bg-slate-50/30">
       
-      {/* Search Header - Above Map */}
-      <div className="sticky top-0 z-[60] bg-white/90 backdrop-blur-xl border-b border-slate-100 px-4 py-3">
+      {/* Search Header - Sticky Top */}
+      <div className="sticky top-0 z-[60] bg-white/95 backdrop-blur-xl border-b border-slate-100 px-5 py-3 shadow-sm">
         <div className="relative group max-w-md mx-auto">
             <input 
                 type="text" 
-                placeholder={activeStore ? `Search ${activeStore.name}...` : "Search products..."} 
+                placeholder={activeStore ? `Find items in ${activeStore.name}...` : "Search products..."} 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-11 bg-slate-100 rounded-xl px-11 text-xs font-bold border-2 border-transparent outline-none focus:ring-4 focus:ring-brand-light focus:bg-white focus:border-brand-DEFAULT/10 transition-all"
+                className="w-full h-11 bg-slate-100 rounded-2xl px-11 text-xs font-bold border-2 border-transparent outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white focus:border-emerald-100 transition-all"
             />
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base opacity-40">🔍</span>
             {searchQuery && (
@@ -89,8 +89,8 @@ export const ShopPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Map Header */}
-      <div className="relative h-[160px] mb-6 overflow-hidden">
+      {/* Map Context Header */}
+      <div className="relative h-[150px] mb-4 overflow-hidden border-b border-slate-100">
         <MapVisualizer 
           stores={availableStores}
           userLat={user.location?.lat || null}
@@ -101,38 +101,38 @@ export const ShopPage: React.FC = () => {
           className="h-full"
           onRequestLocation={detectLocation}
         />
-        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-slate-50/50 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-50/80 to-transparent pointer-events-none" />
         
         {activeStore && (
             <div className="absolute top-3 left-3 z-[500] animate-slide-up">
               <div className="bg-white/95 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-float border border-white/50 flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${
                       activeStore.type === 'produce' ? 'bg-emerald-500 text-white' : 
                       activeStore.type === 'dairy' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
                   }`}>
                       {activeStore.type === 'produce' ? '🥦' : activeStore.type === 'dairy' ? '🥛' : '🏪'}
                   </div>
-                  <span className="text-[9px] font-black text-slate-900 leading-tight truncate max-w-[100px]">{activeStore.name}</span>
+                  <span className="text-[9px] font-black text-slate-900 leading-tight truncate max-w-[120px]">{activeStore.name}</span>
               </div>
             </div>
         )}
       </div>
 
-      {/* Compact Department Scroller - Optimized for space */}
-      <div className="mb-8 overflow-hidden">
-        <div className="px-5 flex items-center justify-between mb-3">
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Departments</h2>
+      {/* Compact Department Scroller */}
+      <div className="mb-6 overflow-hidden">
+        <div className="px-5 flex items-center justify-between mb-2">
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Shop by Department</h2>
         </div>
         
-        <div className="overflow-x-auto hide-scrollbar px-4 flex gap-3">
+        <div className="overflow-x-auto hide-scrollbar px-4 flex gap-2">
            {availableCategories.map((family) => (
              <button 
                 key={family.id}
                 onClick={() => setSelectedCategory(family.id)}
-                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl transition-all duration-300 border-2 shrink-0 ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 border shrink-0 ${
                   selectedCategory === family.id 
-                  ? 'bg-slate-900 border-slate-900 text-white shadow-lg scale-105' 
-                  : 'bg-white border-white text-slate-600 shadow-soft hover:border-slate-100'
+                  ? 'bg-slate-900 border-slate-900 text-white shadow-md' 
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 }`}
              >
                 <span className="text-xl">{family.emoji}</span>
@@ -146,6 +146,12 @@ export const ShopPage: React.FC = () => {
 
       {/* Product Grid */}
       <div className="px-5">
+        <div className="flex items-center gap-2 mb-4">
+             <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
+             <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">
+                 {PRODUCT_FAMILIES.find(f => f.id === selectedCategory)?.title || 'Category'}
+             </h2>
+        </div>
         <div className="grid grid-cols-2 gap-4">
           {filteredProducts.map(product => {
             const count = cart.filter(item => item.originalProductId === product.id).reduce((acc, curr) => acc + curr.quantity, 0);
@@ -160,6 +166,12 @@ export const ShopPage: React.FC = () => {
               />
             );
           })}
+          {filteredProducts.length === 0 && (
+            <div className="col-span-2 py-20 text-center bg-white rounded-[32px] border-2 border-dashed border-slate-100">
+               <div className="text-5xl mb-3 grayscale opacity-20">📦</div>
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching items</p>
+            </div>
+          )}
         </div>
       </div>
 
