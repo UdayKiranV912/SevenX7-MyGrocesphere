@@ -93,11 +93,10 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
         
         {/* Header Section */}
         <div className="bg-brand-light/30 p-8 pb-6 text-center">
-            <div className="mb-4 flex justify-center">
+            <div className="flex justify-center">
                 <SevenX7Logo size="large" isWelcome />
             </div>
-            <h1 className="text-2xl font-black text-gray-800 tracking-tight">Grocesphere</h1>
-            <p className="text-gray-500 text-sm font-medium mt-1">Local Commerce, Reimagined</p>
+            <p className="text-gray-500 text-sm font-medium mt-4">Local Commerce, Reimagined</p>
         </div>
 
         {/* Auth Content */}

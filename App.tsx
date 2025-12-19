@@ -87,7 +87,7 @@ const AppContent: React.FC = () => {
     };
   }, [user.isAuthenticated, detectLocation, setUser]);
 
-  // --- Driver Simulation ---
+  // --- Real-time / Simulation Driving Logic ---
   useEffect(() => {
     orders.forEach(async (order) => {
       if (order.status === 'Pending' && order.paymentStatus === 'PAID') {
@@ -96,40 +96,53 @@ const AppContent: React.FC = () => {
       if (order.status === 'Preparing') {
           setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
       }
-      if (order.status === 'On the way' && order.storeLocation && order.userLocation && !simulationIntervals.current[order.id]) {
-          const path = await getRoute(order.storeLocation.lat, order.storeLocation.lng, order.userLocation.lat, order.userLocation.lng);
-          let currentNodeIndex = 0;
-          let nodeProgress = 0;
-          const speed = 0.15; 
-          simulationIntervals.current[order.id] = window.setInterval(() => {
-            if (currentNodeIndex >= path.length - 1) {
-              window.clearInterval(simulationIntervals.current[order.id]);
-              delete simulationIntervals.current[order.id];
-              updateOrderStatus(order.id, order.mode === 'DELIVERY' ? 'Delivered' : 'Ready');
-              setDriverLocations(prev => {
-                const next = { ...prev };
-                delete next[order.id];
-                return next;
-              });
-              showToast(`Order from ${order.storeName} is ready!`);
-              return;
-            }
-            nodeProgress += speed;
-            if (nodeProgress >= 1) {
-              nodeProgress = 0;
-              currentNodeIndex++;
-            }
-            if (currentNodeIndex < path.length - 1) {
-              const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-              setDriverLocations(prev => ({
-                ...prev,
-                [order.id]: { lat: pos[0], lng: pos[1] }
-              }));
-            }
-          }, 1000);
+      if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
+          // If demo user, simulation should target actual current live location
+          // Store Location is origin
+          const startLat = order.storeLocation?.lat || 0;
+          const startLng = order.storeLocation?.lng || 0;
+          // Destination is User's LIVE location
+          const endLat = user.location?.lat || 0;
+          const endLng = user.location?.lng || 0;
+
+          if (startLat && endLat) {
+            const path = await getRoute(startLat, startLng, endLat, endLng);
+            let currentNodeIndex = 0;
+            let nodeProgress = 0;
+            const speed = 0.15; 
+            simulationIntervals.current[order.id] = window.setInterval(() => {
+              if (currentNodeIndex >= path.length - 1) {
+                window.clearInterval(simulationIntervals.current[order.id]);
+                delete simulationIntervals.current[order.id];
+                updateOrderStatus(order.id, 'Delivered');
+                setDriverLocations(prev => {
+                  const next = { ...prev };
+                  delete next[order.id];
+                  return next;
+                });
+                showToast(`Order from ${order.storeName} has arrived!`);
+                return;
+              }
+              nodeProgress += speed;
+              if (nodeProgress >= 1) {
+                nodeProgress = 0;
+                currentNodeIndex++;
+              }
+              if (currentNodeIndex < path.length - 1) {
+                const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
+                setDriverLocations(prev => ({
+                  ...prev,
+                  [order.id]: { lat: pos[0], lng: pos[1] }
+                }));
+              }
+            }, 1000);
+          }
+      } else if (order.status === 'On the way' && order.mode === 'PICKUP') {
+          // If pickup, just wait and mark ready
+          setTimeout(() => updateOrderStatus(order.id, 'Ready'), 8000);
       }
     });
-  }, [orders, updateOrderStatus, setDriverLocations, showToast]);
+  }, [orders, updateOrderStatus, setDriverLocations, showToast, user.location]);
 
   useEffect(() => {
     if (user.isAuthenticated && !window.history.state) {
@@ -236,12 +249,10 @@ const AppContent: React.FC = () => {
       {currentView !== 'PROFILE' && currentView !== 'CART' && (
         <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm">
             <div className="max-w-md mx-auto grid grid-cols-3 items-center">
-                {/* Logo Section Left */}
                 <div className="justify-self-start">
                     <SevenX7Logo size="xs" />
                 </div>
 
-                {/* Store Name Section Center */}
                 <div className="justify-self-center text-center px-2">
                     <span 
                         className="text-[10px] font-black text-slate-900 uppercase tracking-widest truncate block max-w-[120px] cursor-pointer active:opacity-60 transition-opacity" 
@@ -251,7 +262,6 @@ const AppContent: React.FC = () => {
                     </span>
                 </div>
 
-                {/* Profile Section Right */}
                 <div className="justify-self-end">
                     <button 
                         onClick={() => navigateTo('PROFILE')} 

@@ -17,6 +17,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
   const [activeSection, setActiveSection] = useState<ProfileSection>('MENU');
   const [isEditing, setIsEditing] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
   
   // Profile Form State
   const [formData, setFormData] = useState({
@@ -28,9 +29,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
 
   // Payment Form State
   const [newPayment, setNewPayment] = useState({
-    type: 'UPI' as 'VISA' | 'MASTERCARD' | 'UPI',
+    type: 'UPI' as 'UPI',
     upiId: '',
-    last4: '',
     label: ''
   });
 
@@ -51,14 +51,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
   };
 
   const handleAddPayment = () => {
-    if (!newPayment.label) return;
+    if (!newPayment.label || !newPayment.upiId) return;
     const card: SavedCard = {
       id: `pay_${Date.now()}`,
-      ...newPayment
+      ...newPayment,
+      type: 'UPI'
     };
     onUpdateUser({ savedCards: [...(user.savedCards || []), card] });
     setShowAddPayment(false);
-    setNewPayment({ type: 'UPI', upiId: '', last4: '', label: '' });
+    setNewPayment({ type: 'UPI', upiId: '', label: '' });
   };
 
   const handleDeletePayment = (id: string) => {
@@ -75,7 +76,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 relative">
         {/* Header */}
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between shadow-sm">
              <div className="flex items-center gap-3">
@@ -155,8 +156,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                         <div className="bg-white rounded-[28px] shadow-sm border border-slate-200 overflow-hidden divide-y divide-slate-100">
                             {[
                                 { label: 'Saved Addresses', icon: '📍', value: user.address || 'Click to set address', action: () => setIsEditing(true) },
-                                { label: 'Payment Methods', icon: '💳', value: `${user.savedCards?.length || 0} Saved`, action: () => setActiveSection('PAYMENT') },
-                                { label: 'Terms & Conditions', icon: '📜', value: 'Privacy Policy', action: () => {} },
+                                { label: 'Payment Methods', icon: '📱', value: `${user.savedCards?.length || 0} UPI IDs`, action: () => setActiveSection('PAYMENT') },
+                                { label: 'Terms & Conditions', icon: '📜', value: 'Privacy Policy', action: () => setShowLegalModal(true) },
                                 { label: 'Sign Out', icon: '🚪', value: 'Close secure session', action: onLogout, destructive: true },
                             ].map((item, i) => (
                                 <button key={i} onClick={item.action} className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
@@ -178,22 +179,18 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
             {activeSection === 'PAYMENT' && (
                 <div className="space-y-6 animate-fade-in">
                     <div className="flex justify-between items-center px-1">
-                        <h3 className="font-black text-slate-900 uppercase text-[11px] tracking-widest">Saved Methods</h3>
-                        <button onClick={() => setShowAddPayment(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md">Add New</button>
+                        <h3 className="font-black text-slate-900 uppercase text-[11px] tracking-widest">Saved VPA</h3>
+                        <button onClick={() => setShowAddPayment(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md">Add VPA</button>
                     </div>
 
                     <div className="space-y-3">
                         {user.savedCards?.map(card => (
                             <div key={card.id} className="bg-white p-4 rounded-[20px] border border-slate-200 shadow-sm flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl border border-slate-100">
-                                        {card.type === 'UPI' ? '📱' : '💳'}
-                                    </div>
+                                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl border border-slate-100">📱</div>
                                     <div>
                                         <h4 className="text-sm font-black text-slate-900">{card.label}</h4>
-                                        <p className="text-[10px] font-bold text-slate-500 font-mono mt-0.5">
-                                            {card.type === 'UPI' ? card.upiId : `**** **** **** ${card.last4}`}
-                                        </p>
+                                        <p className="text-[10px] font-bold text-slate-500 font-mono mt-0.5">{card.upiId}</p>
                                     </div>
                                 </div>
                                 <button onClick={() => handleDeletePayment(card.id)} className="w-10 h-10 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-full transition-colors border border-transparent hover:border-red-100">✕</button>
@@ -203,46 +200,61 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
 
                     {showAddPayment && (
                         <div className="bg-white p-6 rounded-[28px] border-2 border-emerald-500 shadow-xl animate-slide-up space-y-4">
-                            <select 
-                                className="w-full bg-slate-50 p-4 rounded-xl text-sm font-black outline-none border border-slate-200"
-                                value={newPayment.type}
-                                onChange={e => setNewPayment({...newPayment, type: e.target.value as any})}
-                            >
-                                <option value="UPI">UPI ID</option>
-                                <option value="VISA">VISA Card</option>
-                                <option value="MASTERCARD">Mastercard</option>
-                            </select>
                             <input 
                                 placeholder="Label (e.g. My PhonePe)"
                                 className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm font-black outline-none"
                                 value={newPayment.label}
                                 onChange={e => setNewPayment({...newPayment, label: e.target.value})}
                             />
-                            {newPayment.type === 'UPI' ? (
-                                <input 
-                                    placeholder="UPI ID (user@bank)"
-                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm font-black outline-none"
-                                    value={newPayment.upiId}
-                                    onChange={e => setNewPayment({...newPayment, upiId: e.target.value})}
-                                />
-                            ) : (
-                                <input 
-                                    placeholder="Last 4 Digits"
-                                    maxLength={4}
-                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm font-black outline-none"
-                                    value={newPayment.last4}
-                                    onChange={e => setNewPayment({...newPayment, last4: e.target.value.replace(/\D/g, '')})}
-                                />
-                            )}
+                            <input 
+                                placeholder="UPI ID (user@bank)"
+                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm font-black outline-none"
+                                value={newPayment.upiId}
+                                onChange={e => setNewPayment({...newPayment, upiId: e.target.value})}
+                            />
                             <div className="flex gap-2 pt-2">
                                 <button onClick={() => setShowAddPayment(false)} className="flex-1 py-4 text-[11px] font-black uppercase text-slate-500 tracking-widest bg-slate-100 rounded-xl">Cancel</button>
-                                <button onClick={handleAddPayment} className="flex-1 bg-slate-900 text-white py-4 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg">Save Method</button>
+                                <button onClick={handleAddPayment} className="flex-1 bg-slate-900 text-white py-4 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg">Save UPI</button>
                             </div>
                         </div>
                     )}
                 </div>
             )}
         </div>
+
+        {/* Legal Modal */}
+        {showLegalModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowLegalModal(false)} />
+                <div className="relative bg-white w-full max-w-md rounded-[32px] p-8 max-h-[80vh] overflow-y-auto animate-scale-in">
+                    <h2 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">Terms & Conditions</h2>
+                    <div className="space-y-6 text-xs text-slate-600 font-medium leading-relaxed">
+                        <section>
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">1. Use of Service</h3>
+                            <p>Grocesphere is a platform connecting customers with local marts. We facilitate the delivery and pickup of grocery items.</p>
+                        </section>
+                        <section>
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">2. Payments</h3>
+                            <p>All payments are processed securely via UPI intent. Real transactions involve actual funds; mock payments are for demo purposes only.</p>
+                        </section>
+                        <section>
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">3. Delivery Policy</h3>
+                            <p>Delivery times are estimates. Real-time 🛵 tracking is provided for transparency but actual arrival depends on road conditions.</p>
+                        </section>
+                        <section>
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">4. Privacy</h3>
+                            <p>Your location data is only used for mart discovery and order delivery. We do not sell your personal information.</p>
+                        </section>
+                    </div>
+                    <button 
+                        onClick={() => setShowLegalModal(false)}
+                        className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                    >
+                        I Understand
+                    </button>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

@@ -32,7 +32,7 @@ export interface Store {
   lng: number;
   isOpen: boolean;
   type: 'general' | 'produce' | 'dairy'; 
-  store_type: 'grocery' | 'local_ecommerce'; // Added to support new schema
+  store_type: 'grocery' | 'local_ecommerce';
   availableProductIds: string[]; 
   upiId?: string; 
 }
@@ -49,13 +49,12 @@ export interface CartItem extends Product {
 
 export type OrderMode = 'DELIVERY' | 'PICKUP';
 export type DeliveryType = 'INSTANT' | 'SCHEDULED';
-export type OrderType = 'grocery' | 'local_ecommerce'; // Added
+export type OrderType = 'grocery' | 'local_ecommerce';
 
 export interface SavedCard {
   id: string;
-  type: 'VISA' | 'MASTERCARD' | 'UPI';
-  last4?: string; 
-  upiId?: string; 
+  type: 'UPI'; // Restricted to UPI as requested
+  upiId: string; 
   label: string;
 }
 
@@ -97,7 +96,7 @@ export interface Order {
   paymentMethod?: string; 
   mode: OrderMode;
   deliveryType: DeliveryType;
-  order_type: OrderType; // Added
+  order_type: OrderType;
   scheduledTime?: string;
   deliveryAddress?: string;
   storeName: string;
