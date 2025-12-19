@@ -9,8 +9,7 @@ const OVERPASS_ENDPOINTS = [
 
 /**
  * SIMULATED DATABASE REGISTRY
- * Only these IDs (or those randomly flagged for demo) are "Successful Registrations"
- * from our Partner App.
+ * Only these IDs (or those randomly flagged for demo) are "Verified Marts"
  */
 const REGISTERED_PARTNER_IDS = [
   'osm-node/28362678',
@@ -46,10 +45,10 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
           let type: 'general' | 'dairy' | 'produce' = 'general';
           let availableProductIds = GENERAL_IDS;
 
-          if (shopType === 'dairy') {
+          if (shopType === 'dairy' || shopType === 'bakery') {
             type = 'dairy';
             availableProductIds = DAIRY_IDS;
-          } else if (shopType === 'greengrocer') {
+          } else if (shopType === 'greengrocer' || shopType === 'butcher') {
             type = 'produce';
             availableProductIds = PRODUCE_IDS;
           }
@@ -57,14 +56,13 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
           const id = `osm-${el.id}`;
           
           // STRICT LOGIC: Must be in our "Partner Database"
-          // We simulate a 20% registration rate for non-explicitly listed IDs for demo purposes
-          const isRegistered = REGISTERED_PARTNER_IDS.includes(id) || (el.id % 5 === 0);
+          const isRegistered = REGISTERED_PARTNER_IDS.includes(id) || (el.id % 6 === 0);
 
           return {
             id,
             name: el.tags.name,
-            address: el.tags['addr:street'] || el.tags['addr:full'] || 'Local area',
-            rating: 4.0 + (Math.random() * 1.0),
+            address: el.tags['addr:street'] || el.tags['addr:full'] || 'Verified Locality',
+            rating: 4.1 + (Math.random() * 0.9),
             distance: 'Nearby',
             lat: el.lat || el.center?.lat,
             lng: el.lon || el.center?.lon,
@@ -72,11 +70,11 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
             type: type,
             store_type: 'grocery',
             availableProductIds: availableProductIds,
-            upiId: `${el.tags.name.toLowerCase().replace(/\s/g, '')}@upi`,
+            upiId: `${el.tags.name.toLowerCase().replace(/\s/g, '')}@okaxis`,
             isRegistered: isRegistered
           };
         })
-        .filter((s: any) => s.lat && s.lng && s.isRegistered); // ONLY RETURN REGISTERED PARTNERS
+        .filter((s: any) => s.lat && s.lng && s.isRegistered); // ONLY RETURN VERIFIED MARTS
     } catch (error) {
       console.warn(`Endpoint ${endpoint} failed, trying next...`);
       continue;
