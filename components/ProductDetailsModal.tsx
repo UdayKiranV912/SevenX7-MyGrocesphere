@@ -187,7 +187,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
             </div>
         </div>
 
-        {/* Bottom Action Bar */}
+        {/* Bottom Action Bar - Now with higher z-index relative to the sheet */}
         <div className="p-6 bg-white border-t border-slate-100 flex flex-col gap-4 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.04)] pb-10 absolute bottom-0 left-0 right-0 z-[210]">
             <div className="flex items-center gap-3">
                 <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200 flex-1">

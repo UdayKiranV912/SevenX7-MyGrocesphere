@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { StoreProvider, useStore } from './contexts/StoreContext';
-import { Order, DeliveryType, UserState, OrderType } from './types';
+import { Order, DeliveryType, UserState } from './types';
 import { Auth } from './components/OTPVerification';
 import { CartSheet } from './components/CartSheet';
 import { PaymentGateway } from './components/PaymentGateway';
@@ -68,15 +68,7 @@ const AppContent: React.FC = () => {
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
-                setUser(prev => {
-                    if (!prev.location) return { ...prev, location: { lat: latitude, lng: longitude } };
-                    const latDiff = Math.abs(prev.location.lat - latitude);
-                    const lngDiff = Math.abs(prev.location.lng - longitude);
-                    if (latDiff > 0.0002 || lngDiff > 0.0002) { 
-                        return { ...prev, location: { lat: latitude, lng: longitude } };
-                    }
-                    return prev;
-                });
+                setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude } }));
             },
             (err) => console.warn("Watch position error:", err),
             { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
@@ -87,58 +79,62 @@ const AppContent: React.FC = () => {
     };
   }, [user.isAuthenticated, detectLocation, setUser]);
 
-  // --- Real-time / Simulation Driving Logic ---
+  // --- Real-time Order Tracking Simulation ---
   useEffect(() => {
     orders.forEach(async (order) => {
+      // Logic for moving order statuses
       if (order.status === 'Pending' && order.paymentStatus === 'PAID') {
           setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
       }
       if (order.status === 'Preparing') {
           setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
       }
+      
+      // Tracking Logic: Only for 'On the way' delivery orders
       if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
-          // If demo user, simulation should target actual current live location
-          // Store Location is origin
-          const startLat = order.storeLocation?.lat || 0;
-          const startLng = order.storeLocation?.lng || 0;
-          // Destination is User's LIVE location
-          const endLat = user.location?.lat || 0;
-          const endLng = user.location?.lng || 0;
+          const targetLocation = user.location;
+          if (!targetLocation || !order.storeLocation) return;
 
-          if (startLat && endLat) {
-            const path = await getRoute(startLat, startLng, endLat, endLng);
-            let currentNodeIndex = 0;
-            let nodeProgress = 0;
-            const speed = 0.15; 
-            simulationIntervals.current[order.id] = window.setInterval(() => {
-              if (currentNodeIndex >= path.length - 1) {
-                window.clearInterval(simulationIntervals.current[order.id]);
-                delete simulationIntervals.current[order.id];
-                updateOrderStatus(order.id, 'Delivered');
-                setDriverLocations(prev => {
-                  const next = { ...prev };
-                  delete next[order.id];
-                  return next;
-                });
-                showToast(`Order from ${order.storeName} has arrived!`);
-                return;
-              }
-              nodeProgress += speed;
-              if (nodeProgress >= 1) {
-                nodeProgress = 0;
-                currentNodeIndex++;
-              }
-              if (currentNodeIndex < path.length - 1) {
-                const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-                setDriverLocations(prev => ({
-                  ...prev,
-                  [order.id]: { lat: pos[0], lng: pos[1] }
-                }));
-              }
-            }, 1000);
-          }
+          const startLat = order.storeLocation.lat;
+          const startLng = order.storeLocation.lng;
+          const endLat = targetLocation.lat;
+          const endLng = targetLocation.lng;
+
+          const path = await getRoute(startLat, startLng, endLat, endLng);
+          let currentNodeIndex = 0;
+          let nodeProgress = 0;
+          const speed = 0.15; // Animation speed
+
+          simulationIntervals.current[order.id] = window.setInterval(() => {
+            if (currentNodeIndex >= path.length - 1) {
+              window.clearInterval(simulationIntervals.current[order.id]);
+              delete simulationIntervals.current[order.id];
+              updateOrderStatus(order.id, 'Delivered');
+              setDriverLocations(prev => {
+                const next = { ...prev };
+                delete next[order.id];
+                return next;
+              });
+              showToast(`Order from ${order.storeName} has been delivered! 🛵`);
+              return;
+            }
+
+            nodeProgress += speed;
+            if (nodeProgress >= 1) {
+              nodeProgress = 0;
+              currentNodeIndex++;
+            }
+
+            if (currentNodeIndex < path.length - 1) {
+              const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
+              setDriverLocations(prev => ({
+                ...prev,
+                [order.id]: { lat: pos[0], lng: pos[1] }
+              }));
+            }
+          }, 1000);
       } else if (order.status === 'On the way' && order.mode === 'PICKUP') {
-          // If pickup, just wait and mark ready
+          // If pickup, mark ready after some time
           setTimeout(() => updateOrderStatus(order.id, 'Ready'), 8000);
       }
     });
@@ -245,27 +241,30 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
-      {/* Optimized Layout Header */}
+      {/* Main Header */}
       {currentView !== 'PROFILE' && currentView !== 'CART' && (
         <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm">
             <div className="max-w-md mx-auto grid grid-cols-3 items-center">
+                {/* Left: Logo */}
                 <div className="justify-self-start">
                     <SevenX7Logo size="xs" />
                 </div>
 
-                <div className="justify-self-center text-center px-2">
+                {/* Center: Store Name */}
+                <div className="justify-self-center text-center">
                     <span 
-                        className="text-[10px] font-black text-slate-900 uppercase tracking-widest truncate block max-w-[120px] cursor-pointer active:opacity-60 transition-opacity" 
+                        className="text-[10px] font-black text-slate-900 uppercase tracking-widest truncate block max-w-[140px] cursor-pointer" 
                         onClick={detectLocation}
                     >
                         {activeStore ? activeStore.name : 'Locating...'}
                     </span>
                 </div>
 
+                {/* Right: Profile */}
                 <div className="justify-self-end">
                     <button 
                         onClick={() => navigateTo('PROFILE')} 
-                        className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg active:scale-90"
+                        className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg"
                     >
                         {user.name?.charAt(0) || 'U'}
                     </button>
@@ -307,6 +306,7 @@ const AppContent: React.FC = () => {
              }}
              isDemo={user.id === 'demo-user'}
              storeName={pendingOrderDetails.storeName}
+             splits={pendingOrderDetails.splits}
           />
         )}
       </main>
@@ -330,7 +330,7 @@ const AppContent: React.FC = () => {
                       <div className="relative mb-1">
                           <span className="text-xl block">{item.icon}</span>
                           {item.badge ? (
-                              <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm">
+                              <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border-2 border-white">
                                   {item.badge}
                               </span>
                           ) : null}

@@ -115,6 +115,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       const am = amount.toFixed(2);
       const cu = 'INR';
       
+      // Intent URL for UPI
       const upiUrl = `upi://pay?pa=${vpa}&pn=${pn}&am=${am}&cu=${cu}&tn=${tn}&tr=${tr}`;
       
       timerRef.current = setTimeout(() => {

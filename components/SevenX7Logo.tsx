@@ -3,21 +3,20 @@ import React from 'react';
 
 interface SevenX7LogoProps {
   size?: 'xs' | 'small' | 'medium' | 'large';
-  isWelcome?: boolean;
   onNewsClick?: () => void;
   hideBrandName?: boolean;
 }
 
-const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', isWelcome = false, onNewsClick, hideBrandName = false }) => {
+const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, hideBrandName = false }) => {
   
   const getTextSize = () => {
-      switch(size) {
-          case 'xs': return 'text-[10px]';
-          case 'small': return 'text-xs';
-          case 'medium': return 'text-xl';
-          case 'large': return 'text-4xl';
-          default: return 'text-xs';
-      }
+    switch(size) {
+      case 'xs': return 'text-[10px]';
+      case 'small': return 'text-xs';
+      case 'medium': return 'text-xl';
+      case 'large': return 'text-4xl';
+      default: return 'text-xs';
+    }
   };
 
   const isLarge = size === 'large';

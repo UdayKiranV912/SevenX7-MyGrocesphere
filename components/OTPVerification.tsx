@@ -94,7 +94,8 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
         {/* Header Section */}
         <div className="bg-brand-light/30 p-8 pb-6 text-center">
             <div className="flex justify-center">
-                <SevenX7Logo size="large" isWelcome />
+                {/* Fixed error: Property 'isWelcome' does not exist on SevenX7LogoProps */}
+                <SevenX7Logo size="large" />
             </div>
             <p className="text-gray-500 text-sm font-medium mt-4">Local Commerce, Reimagined</p>
         </div>
