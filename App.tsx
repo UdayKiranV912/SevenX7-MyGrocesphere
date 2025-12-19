@@ -204,7 +204,8 @@ const AppContent: React.FC = () => {
             paymentStatus: 'PAID',
             paymentMethod: paymentMethodString,
             mode: orderMode,
-            deliveryType: 'INSTANT',
+            deliveryType: pendingOrderDetails.deliveryType,
+            scheduledTime: pendingOrderDetails.scheduledTime,
             order_type: 'grocery',
             storeName: storeItem.storeName,
             storeLocation: sourceStore ? { lat: sourceStore.lat, lng: sourceStore.lng } : { lat: 0, lng: 0 }, 
@@ -231,20 +232,35 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
-      {/* Primary Header */}
+      {/* Optimized Layout Header */}
       {currentView !== 'PROFILE' && currentView !== 'CART' && (
-        <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm flex items-center justify-between">
-            <div className="flex flex-col">
-                <SevenX7Logo size="xs" />
-                <div className="flex items-center gap-1 mt-0.5" onClick={detectLocation}>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[120px] cursor-pointer">
-                        {activeStore ? activeStore.name : 'Locating Marts...'}
+        <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm">
+            <div className="max-w-md mx-auto grid grid-cols-3 items-center">
+                {/* Logo Section Left */}
+                <div className="justify-self-start">
+                    <SevenX7Logo size="xs" />
+                </div>
+
+                {/* Store Name Section Center */}
+                <div className="justify-self-center text-center px-2">
+                    <span 
+                        className="text-[10px] font-black text-slate-900 uppercase tracking-widest truncate block max-w-[120px] cursor-pointer active:opacity-60 transition-opacity" 
+                        onClick={detectLocation}
+                    >
+                        {activeStore ? activeStore.name : 'Locating...'}
                     </span>
                 </div>
+
+                {/* Profile Section Right */}
+                <div className="justify-self-end">
+                    <button 
+                        onClick={() => navigateTo('PROFILE')} 
+                        className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg active:scale-90"
+                    >
+                        {user.name?.charAt(0) || 'U'}
+                    </button>
+                </div>
             </div>
-            <button onClick={() => navigateTo('PROFILE')} className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg active:scale-90">
-                {user.name?.charAt(0) || 'U'}
-            </button>
         </header>
       )}
 

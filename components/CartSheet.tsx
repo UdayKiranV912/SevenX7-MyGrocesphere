@@ -97,6 +97,15 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
   onClose
 }) => {
   const [isLocatingAddress, setIsLocatingAddress] = useState(false);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
+
+  useEffect(() => {
+    // Set default scheduled time to 2 hours from now
+    const now = new Date();
+    now.setHours(now.getHours() + 2);
+    setScheduledTime(now.toISOString().slice(0, 16));
+  }, []);
   
   const MINIMUM_ORDER_VALUE = 1000; 
   const BASE_DELIVERY_FEE = 30;
@@ -188,7 +197,7 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
            })}
          </div>
 
-         {/* Delivery Preferences */}
+         {/* Timing & Preferences */}
          <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100 space-y-5">
             <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block ml-1">Receive Method</label>
@@ -208,18 +217,51 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
                 </div>
             </div>
 
+            {/* Schedule Option for BOTH modes */}
+            <div className="pt-2">
+                <div className="flex justify-between items-center mb-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Timing Preference</label>
+                    <div 
+                      onClick={() => setIsScheduled(!isScheduled)}
+                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${isScheduled ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                    >
+                        <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isScheduled ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </div>
+                </div>
+                
+                {isScheduled ? (
+                    <div className="animate-fade-in">
+                        <input 
+                            type="datetime-local" 
+                            value={scheduledTime}
+                            onChange={(e) => setScheduledTime(e.target.value)}
+                            className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-[11px] font-black outline-none focus:bg-white focus:ring-4 focus:ring-emerald-50/50"
+                        />
+                        <p className="text-[8px] text-slate-400 font-bold uppercase mt-2 ml-1">Schedule your preferred {mode.toLowerCase()} slot</p>
+                    </div>
+                ) : (
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center gap-3">
+                        <span className="text-lg">⚡</span>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-900 uppercase">Instant {mode === 'DELIVERY' ? 'Delivery' : 'Pickup'}</p>
+                            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Earliest possible arrival</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {mode === 'DELIVERY' && (
-                <div className="space-y-3 animate-fade-in">
+                <div className="space-y-3 animate-fade-in pt-2">
                     <div className="flex justify-between items-center px-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery Details</label>
                         <button onClick={handleUseCurrentLocation} className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-                            {isLocatingAddress ? <div className="w-2.5 h-2.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : '📍 Current Location'}
+                            {isLocatingAddress ? <div className="w-2.5 h-2.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : '📍 Use GPS'}
                         </button>
                     </div>
                     <textarea
                         value={deliveryAddress}
                         onChange={(e) => onAddressChange(e.target.value)}
-                        placeholder="Room/Flat No, Wing, Landmark..."
+                        placeholder="Flat No, Wing, Floor, Landmark..."
                         className="w-full bg-slate-50 rounded-2xl p-4 text-[11px] font-black text-slate-700 resize-none focus:bg-white focus:ring-4 focus:ring-emerald-50/50 transition-all outline-none border border-slate-200"
                         rows={2}
                     />
@@ -256,7 +298,8 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
          <div className="max-w-md mx-auto">
              <button 
                 onClick={() => onProceedToPay({ 
-                    deliveryType: 'INSTANT', 
+                    deliveryType: isScheduled ? 'SCHEDULED' : 'INSTANT', 
+                    scheduledTime: isScheduled ? scheduledTime : undefined,
                     splits: { 
                         storeAmount: itemsTotal, 
                         deliveryFee: deliveryFee, 

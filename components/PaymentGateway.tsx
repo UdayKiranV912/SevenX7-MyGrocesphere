@@ -142,10 +142,8 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       const cu = 'INR';
       
       // Construct UPI Intent URL
-      // This will open the UPI app chooser on mobile devices
       const upiUrl = `upi://pay?pa=${vpa}&pn=${pn}&am=${am}&cu=${cu}&tn=${tn}&tr=${tr}`;
       
-      // Simulate App Redirect
       timerRef.current = setTimeout(() => {
           // Trigger the deep link
           window.location.href = upiUrl;
@@ -153,12 +151,9 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
           // Move to waiting state
           setStep('WAITING_CONFIRMATION');
           
-          // In a production app, we would poll the backend for payment status here.
-          // Since this is a PWA without a bank webhook listener active in this context,
-          // we assume success after a realistic timeout to let the user proceed.
           timerRef.current = setTimeout(() => {
               setStep('SUCCESS');
-          }, 8000); // 8 seconds to allow user to pay and switch back apps
+          }, 8000); 
 
       }, 1500);
   };
@@ -267,24 +262,39 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                       <div className="space-y-4 animate-slide-up">
                            <h3 className="text-xs font-black text-slate-400 uppercase ml-2">Pay via UPI App</h3>
                            
-                           {['Google Pay', 'PhonePe', 'Paytm', 'Amazon Pay', 'BHIM'].map((app) => (
+                           {['Google Pay', 'PhonePe', 'Paytm', 'Amazon Pay', 'BHIM'].map((app) => {
+                               const isSelected = selectedUpiApp === app;
+                               return (
                                <button 
                                   key={app}
                                   onClick={() => handleRealTimeUpiSelect(app)}
-                                  className="w-full bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:border-brand-DEFAULT hover:shadow-md transition-all active:scale-[0.98]"
+                                  className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between active:scale-[0.98] ${
+                                      isSelected 
+                                      ? 'bg-emerald-50 border-emerald-500 shadow-md ring-2 ring-emerald-500/20' 
+                                      : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'
+                                  }`}
                                >
                                    <div className="flex items-center gap-4">
-                                       <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl">
+                                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${isSelected ? 'bg-emerald-100' : 'bg-slate-50'}`}>
                                           📱
                                        </div>
-                                       <span className="font-bold text-slate-800 text-sm">{app}</span>
+                                       <span className={`font-bold text-sm ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>{app}</span>
                                    </div>
-                                   <span className="text-slate-300">→</span>
+                                   {isSelected ? (
+                                       <div className="bg-emerald-500 text-white rounded-full p-1 shadow-sm">
+                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                           </svg>
+                                       </div>
+                                   ) : (
+                                       <span className="text-slate-300 text-lg">›</span>
+                                   )}
                                </button>
-                           ))}
+                               );
+                           })}
                            
                            <div className="mt-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100 text-[10px] text-yellow-800 leading-relaxed text-center">
-                               <strong>Note:</strong> You will be redirected to the selected app to complete the payment of <strong>₹{amount}</strong> to <strong>{splits?.storeUpi || 'store@upi'}</strong>.
+                               <strong>Note:</strong> You will be redirected to the selected app to complete the payment of <strong>₹{amount}</strong>.
                            </div>
                       </div>
                   ) : (
@@ -294,24 +304,35 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                           {savedCards.length > 0 && (
                               <div className="space-y-2">
                                   <h3 className="text-xs font-black text-slate-400 uppercase ml-2">Saved Methods</h3>
-                                  {savedCards.map(card => (
+                                  {savedCards.map(card => {
+                                      const isSelected = selectedMethod === card.id;
+                                      return (
                                       <div 
                                         key={card.id}
                                         onClick={() => setSelectedMethod(card.id)}
-                                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${selectedMethod === card.id ? 'border-brand-DEFAULT bg-white shadow-md' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-500/20' : 'border-slate-200 bg-white hover:border-slate-300'}`}
                                       >
-                                          <div className="text-2xl">{getMethodIcon(card.type)}</div>
+                                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${isSelected ? 'bg-emerald-100' : 'bg-slate-50'}`}>
+                                              {getMethodIcon(card.type)}
+                                          </div>
                                           <div className="flex-1">
-                                              <p className="font-bold text-slate-800 text-sm">{card.label}</p>
-                                              <p className="text-xs text-slate-500 font-mono">
-                                                  {card.type === 'UPI' ? card.upiId : `**** ${card.last4}`}
+                                              <p className={`font-black text-sm ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>{card.label}</p>
+                                              <p className={`text-[10px] font-bold font-mono uppercase ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                  {card.type === 'UPI' ? card.upiId : `**** **** **** ${card.last4}`}
                                               </p>
                                           </div>
-                                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedMethod === card.id ? 'border-brand-DEFAULT' : 'border-slate-300'}`}>
-                                              {selectedMethod === card.id && <div className="w-2.5 h-2.5 bg-brand-DEFAULT rounded-full" />}
-                                          </div>
+                                          {isSelected ? (
+                                              <div className="bg-emerald-500 text-white rounded-full p-1.5 shadow-sm scale-110">
+                                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                                                  </svg>
+                                              </div>
+                                          ) : (
+                                              <div className="w-6 h-6 rounded-full border-2 border-slate-200" />
+                                          )}
                                       </div>
-                                  ))}
+                                      );
+                                  })}
                               </div>
                           )}
 
@@ -319,36 +340,45 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
                           {/* UPI NEW */}
                           <div 
-                            className={`bg-white rounded-2xl overflow-hidden border-2 transition-all ${selectedMethod === 'upi_new' ? 'border-brand-DEFAULT shadow-md' : 'border-slate-200'}`}
+                            className={`bg-white rounded-[24px] overflow-hidden border-2 transition-all ${selectedMethod === 'upi_new' ? 'border-emerald-500 shadow-lg' : 'border-slate-200'}`}
                           >
                               <div 
-                                className="p-4 flex items-center gap-4 cursor-pointer"
+                                className={`p-4 flex items-center gap-4 cursor-pointer ${selectedMethod === 'upi_new' ? 'bg-emerald-50/30' : ''}`}
                                 onClick={() => setSelectedMethod('upi_new')}
                               >
-                                  <div className="text-2xl">📱</div>
-                                  <div className="flex-1 font-bold text-slate-800 text-sm">Add New UPI ID</div>
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedMethod === 'upi_new' ? 'border-brand-DEFAULT' : 'border-slate-300'}`}>
-                                      {selectedMethod === 'upi_new' && <div className="w-2.5 h-2.5 bg-brand-DEFAULT rounded-full" />}
-                                  </div>
+                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${selectedMethod === 'upi_new' ? 'bg-emerald-100' : 'bg-slate-50'}`}>📱</div>
+                                  <div className="flex-1 font-black text-slate-800 text-sm uppercase tracking-tight">Add New UPI ID</div>
+                                  {selectedMethod === 'upi_new' ? (
+                                      <div className="bg-emerald-500 text-white rounded-full p-1.5 shadow-sm">
+                                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                      </div>
+                                  ) : (
+                                      <div className="w-6 h-6 rounded-full border-2 border-slate-200" />
+                                  )}
                               </div>
                               
                               {selectedMethod === 'upi_new' && (
-                                  <div className="p-4 pt-0 bg-slate-50/50 border-t border-slate-100 animate-fade-in">
+                                  <div className="p-4 pt-0 bg-white border-t border-slate-50 animate-fade-in">
                                       <input 
                                           type="text" 
                                           placeholder="Enter UPI ID (e.g. user@okhdfc)" 
                                           value={upiId}
                                           onChange={(e) => setUpiId(e.target.value)}
-                                          className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:border-brand-DEFAULT mb-3"
+                                          className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-black outline-none focus:border-emerald-500 transition-all mb-3 bg-slate-50/50"
                                       />
-                                      <label className="flex items-center gap-2 cursor-pointer">
-                                          <input 
-                                            type="checkbox" 
-                                            checked={saveMethod} 
-                                            onChange={(e) => setSaveMethod(e.target.checked)} 
-                                            className="w-4 h-4 text-brand-DEFAULT rounded" 
-                                          />
-                                          <span className="text-xs font-bold text-slate-500">Securely save this VPA for future</span>
+                                      <label className="flex items-center gap-3 cursor-pointer group">
+                                          <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${saveMethod ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}`}>
+                                              {saveMethod && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                                              <input 
+                                                type="checkbox" 
+                                                checked={saveMethod} 
+                                                onChange={(e) => setSaveMethod(e.target.checked)} 
+                                                className="hidden" 
+                                              />
+                                          </div>
+                                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Save securely</span>
                                       </label>
                                   </div>
                               )}
@@ -356,42 +386,48 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
                           {/* CARD NEW */}
                           <div 
-                            className={`bg-white rounded-2xl overflow-hidden border-2 transition-all ${selectedMethod === 'card_new' ? 'border-brand-DEFAULT shadow-md' : 'border-slate-200'}`}
+                            className={`bg-white rounded-[24px] overflow-hidden border-2 transition-all ${selectedMethod === 'card_new' ? 'border-emerald-500 shadow-lg' : 'border-slate-200'}`}
                           >
                               <div 
-                                className="p-4 flex items-center gap-4 cursor-pointer"
+                                className={`p-4 flex items-center gap-4 cursor-pointer ${selectedMethod === 'card_new' ? 'bg-emerald-50/30' : ''}`}
                                 onClick={() => setSelectedMethod('card_new')}
                               >
-                                  <div className="text-2xl">💳</div>
-                                  <div className="flex-1 font-bold text-slate-800 text-sm">Credit / Debit Card</div>
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedMethod === 'card_new' ? 'border-brand-DEFAULT' : 'border-slate-300'}`}>
-                                      {selectedMethod === 'card_new' && <div className="w-2.5 h-2.5 bg-brand-DEFAULT rounded-full" />}
-                                  </div>
+                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${selectedMethod === 'card_new' ? 'bg-emerald-100' : 'bg-slate-50'}`}>💳</div>
+                                  <div className="flex-1 font-black text-slate-800 text-sm uppercase tracking-tight">Credit / Debit Card</div>
+                                  {selectedMethod === 'card_new' ? (
+                                      <div className="bg-emerald-500 text-white rounded-full p-1.5 shadow-sm">
+                                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                      </div>
+                                  ) : (
+                                      <div className="w-6 h-6 rounded-full border-2 border-slate-200" />
+                                  )}
                               </div>
                               
                               {selectedMethod === 'card_new' && (
-                                  <div className="p-4 pt-0 bg-slate-50/50 border-t border-slate-100 animate-fade-in space-y-3">
+                                  <div className="p-4 pt-0 bg-white border-t border-slate-50 animate-fade-in space-y-4">
                                       <input 
                                           type="text" 
                                           placeholder="Card Number" 
                                           value={cardNumber}
                                           onChange={(e) => setCardNumber(e.target.value.replace(/\D/g,'').slice(0, 16))}
-                                          className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:border-brand-DEFAULT"
+                                          className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-black outline-none focus:border-emerald-500 bg-slate-50/50"
                                       />
-                                      <div className="flex gap-3">
+                                      <div className="flex gap-4">
                                           <input 
                                               type="text" 
                                               placeholder="MM/YY" 
                                               value={cardExpiry}
                                               onChange={(e) => setCardExpiry(e.target.value)}
-                                              className="flex-1 p-3 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:border-brand-DEFAULT"
+                                              className="flex-1 p-4 rounded-xl border-2 border-slate-100 text-sm font-black outline-none focus:border-emerald-500 bg-slate-50/50"
                                           />
                                           <input 
                                               type="password" 
                                               placeholder="CVV" 
                                               value={cardCvv}
                                               onChange={(e) => setCardCvv(e.target.value.slice(0, 3))}
-                                              className="w-24 p-3 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:border-brand-DEFAULT"
+                                              className="w-24 p-4 rounded-xl border-2 border-slate-100 text-sm font-black outline-none focus:border-emerald-500 bg-slate-50/50"
                                           />
                                       </div>
                                       <input 
@@ -399,49 +435,20 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                                           placeholder="Name on Card" 
                                           value={cardName}
                                           onChange={(e) => setCardName(e.target.value)}
-                                          className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:border-brand-DEFAULT"
+                                          className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-black outline-none focus:border-emerald-500 bg-slate-50/50"
                                       />
-                                      <label className="flex items-center gap-2 cursor-pointer">
-                                          <input 
-                                            type="checkbox" 
-                                            checked={saveMethod} 
-                                            onChange={(e) => setSaveMethod(e.target.checked)} 
-                                            className="w-4 h-4 text-brand-DEFAULT rounded" 
-                                          />
-                                          <span className="text-xs font-bold text-slate-500">Save card securely</span>
+                                      <label className="flex items-center gap-3 cursor-pointer">
+                                          <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${saveMethod ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}`}>
+                                              {saveMethod && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                                              <input 
+                                                type="checkbox" 
+                                                checked={saveMethod} 
+                                                onChange={(e) => setSaveMethod(e.target.checked)} 
+                                                className="hidden" 
+                                              />
+                                          </div>
+                                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Securely save card</span>
                                       </label>
-                                  </div>
-                              )}
-                          </div>
-
-                          {/* NET BANKING */}
-                          <div 
-                            className={`bg-white rounded-2xl overflow-hidden border-2 transition-all ${selectedMethod === 'net_banking' ? 'border-brand-DEFAULT shadow-md' : 'border-slate-200'}`}
-                          >
-                              <div 
-                                className="p-4 flex items-center gap-4 cursor-pointer"
-                                onClick={() => setSelectedMethod('net_banking')}
-                              >
-                                  <div className="text-2xl">🏦</div>
-                                  <div className="flex-1 font-bold text-slate-800 text-sm">Net Banking</div>
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedMethod === 'net_banking' ? 'border-brand-DEFAULT' : 'border-slate-300'}`}>
-                                      {selectedMethod === 'net_banking' && <div className="w-2.5 h-2.5 bg-brand-DEFAULT rounded-full" />}
-                                  </div>
-                              </div>
-                              
-                              {selectedMethod === 'net_banking' && (
-                                  <div className="p-4 pt-0 bg-slate-50/50 border-t border-slate-100 animate-fade-in">
-                                      <select 
-                                        value={selectedBank}
-                                        onChange={(e) => setSelectedBank(e.target.value)}
-                                        className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:border-brand-DEFAULT bg-white"
-                                      >
-                                          <option value="">Select Bank</option>
-                                          <option value="HDFC">HDFC Bank</option>
-                                          <option value="SBI">State Bank of India</option>
-                                          <option value="ICICI">ICICI Bank</option>
-                                          <option value="AXIS">Axis Bank</option>
-                                      </select>
                                   </div>
                               )}
                           </div>
@@ -452,20 +459,19 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
               {/* Pay Button Footer (Only for Demo) */}
               {isDemo && (
-                  <div className="p-4 border-t border-slate-200 bg-white">
+                  <div className="p-6 border-t border-slate-200 bg-white">
                       <button 
                         onClick={handleDemoPay}
                         disabled={
                             (selectedMethod === 'upi_new' && !upiId) || 
                             (selectedMethod === 'card_new' && (!cardNumber || !cardCvv)) ||
-                            (selectedMethod === 'net_banking' && !selectedBank)
+                            (selectedMethod === 'net_banking' && !selectedBank) ||
+                            !selectedMethod
                         }
-                        className="w-full bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg hover:bg-black active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full h-14 bg-slate-900 text-white rounded-[20px] font-black shadow-float active:scale-[0.98] transition-all disabled:opacity-40 disabled:grayscale flex items-center justify-between px-8"
                       >
-                          <span>Pay ₹{amount}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
-                          </svg>
+                          <span className="text-[10px] uppercase tracking-[0.2em]">Pay Now</span>
+                          <span className="text-xl font-black tracking-tighter">₹{amount}</span>
                       </button>
                   </div>
               )}
@@ -479,7 +485,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       <div className="bg-gray-800 p-3 flex items-center gap-3 shadow-md z-50">
         <button onClick={onCancel} className="text-gray-400 hover:text-white">✕</button>
         <div className="flex-1 bg-gray-700 rounded-lg px-4 py-2 text-xs text-green-400 font-mono flex items-center gap-2">
-          <span className="text-gray-400">🔒</span> https://secure-payments.bank-gateway.com
+          <span className="text-gray-400">🔒</span> https://secure.grocesphere.com/payment
         </div>
       </div>
 
