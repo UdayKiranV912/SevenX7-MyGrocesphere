@@ -228,27 +228,27 @@ const AppContent: React.FC = () => {
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden pb-20">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
       {/* Primary Header */}
-      {currentView !== 'PROFILE' && (
+      {currentView !== 'PROFILE' && currentView !== 'CART' && (
         <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm flex items-center justify-between">
             <div className="flex flex-col">
                 <SevenX7Logo size="xs" />
                 <div className="flex items-center gap-1 mt-0.5" onClick={detectLocation}>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[120px]">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[120px] cursor-pointer">
                         {activeStore ? activeStore.name : 'Locating Marts...'}
                     </span>
                 </div>
             </div>
-            <button onClick={() => navigateTo('PROFILE')} className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase">
+            <button onClick={() => navigateTo('PROFILE')} className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg active:scale-90">
                 {user.name?.charAt(0) || 'U'}
             </button>
         </header>
       )}
 
-      <main className="max-w-md mx-auto relative min-h-[calc(100vh-140px)]">
+      <main className={`max-w-md mx-auto relative ${currentView === 'CART' ? 'h-screen overflow-hidden' : 'pb-24'}`}>
         {currentView === 'SHOP' && <ShopPage />}
         {currentView === 'ORDERS' && <MyOrders userLocation={user.location} userId={user.id} />}
         {currentView === 'PROFILE' && <ProfilePage onBack={() => navigateTo('SHOP')} />}
@@ -286,7 +286,7 @@ const AppContent: React.FC = () => {
       </main>
 
       {/* Bottom Navigation */}
-      {currentView !== 'PROFILE' && !showPaymentGateway && (
+      {currentView !== 'PROFILE' && !showPaymentGateway && currentView !== 'CART' && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
            <div className="max-w-md mx-auto flex justify-around items-center px-4 py-3">
             {[
@@ -304,7 +304,7 @@ const AppContent: React.FC = () => {
                       <div className="relative mb-1">
                           <span className="text-xl block">{item.icon}</span>
                           {item.badge ? (
-                              <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border-2 border-white">
+                              <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm">
                                   {item.badge}
                               </span>
                           ) : null}
