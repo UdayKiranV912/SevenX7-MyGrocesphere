@@ -245,6 +245,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">4. Privacy</h3>
                             <p>Your location data is only used for mart discovery and order delivery. We do not sell your personal information.</p>
                         </section>
+                        <section className="pt-4 border-t border-slate-100">
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">5. Map Attribution & Credits</h3>
+                            <p className="mb-2">Map data and geocoding services are provided by <strong className="text-slate-900">OpenStreetMap</strong> (OSM).</p>
+                            <p className="italic">© OpenStreetMap contributors. Map rendering via CartoDB.</p>
+                            <p className="mt-2">Routing data is powered by the Project OSRM engine using OpenStreetMap data.</p>
+                        </section>
                     </div>
                     <button 
                         onClick={() => setShowLegalModal(false)}

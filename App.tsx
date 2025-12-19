@@ -264,7 +264,7 @@ const AppContent: React.FC = () => {
                 <div className="justify-self-end">
                     <button 
                         onClick={() => navigateTo('PROFILE')} 
-                        className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg"
+                        className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg transition-transform active:scale-90"
                     >
                         {user.name?.charAt(0) || 'U'}
                     </button>
@@ -273,7 +273,7 @@ const AppContent: React.FC = () => {
         </header>
       )}
 
-      <main className={`max-w-md mx-auto relative ${currentView === 'CART' ? 'h-screen overflow-hidden' : 'pb-24'}`}>
+      <main className={`max-w-md mx-auto relative ${currentView === 'CART' ? 'h-screen overflow-hidden' : 'pb-16'}`}>
         {currentView === 'SHOP' && <ShopPage />}
         {currentView === 'ORDERS' && <MyOrders userLocation={user.location} userId={user.id} />}
         {currentView === 'PROFILE' && <ProfilePage onBack={() => navigateTo('SHOP')} />}
@@ -311,10 +311,10 @@ const AppContent: React.FC = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Improved Bottom Navigation - Compact High-End UI */}
       {currentView !== 'PROFILE' && !showPaymentGateway && currentView !== 'CART' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
-           <div className="max-w-md mx-auto flex justify-around items-center px-4 py-3">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-8px_25px_rgba(0,0,0,0.05)]">
+           <div className="max-w-md mx-auto flex justify-around items-center px-4 py-1.5">
             {[
               { id: 'SHOP', icon: '🏠', label: 'Home' },
               { id: 'CART', icon: '🛒', label: 'Cart', badge: totalCartItems },
@@ -325,17 +325,22 @@ const AppContent: React.FC = () => {
                   <button 
                       key={item.id}
                       onClick={() => navigateTo(item.id as any)}
-                      className={`flex flex-col items-center justify-center w-20 transition-all ${isActive ? 'text-slate-900' : 'text-slate-400'}`}
+                      className={`flex flex-col items-center justify-center w-1/4 py-1 transition-all group ${isActive ? 'text-slate-900' : 'text-slate-300'}`}
                   >
-                      <div className="relative mb-1">
-                          <span className="text-xl block">{item.icon}</span>
+                      <div className="relative mb-0.5 transition-transform group-active:scale-95">
+                          <span className={`text-xl block transition-all ${isActive ? 'scale-110 drop-shadow-sm' : 'opacity-70 group-hover:opacity-100'}`}>{item.icon}</span>
                           {item.badge ? (
-                              <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border-2 border-white">
+                              <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border border-white shadow-sm px-0.5">
                                   {item.badge}
                               </span>
                           ) : null}
                       </div>
-                      <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
+                      <span className={`text-[6px] font-black uppercase tracking-[0.2em] transition-opacity leading-none ${isActive ? 'opacity-100' : 'opacity-0'}`}>
+                          {item.label}
+                      </span>
+                      
+                      {/* Slim Indicator */}
+                      <div className={`h-0.5 bg-slate-900 rounded-full mt-1.5 transition-all duration-300 ${isActive ? 'w-4 opacity-100' : 'w-0 opacity-0'}`} />
                   </button>
                 );
             })}
