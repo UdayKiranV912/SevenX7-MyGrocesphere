@@ -1,7 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
-import { MOCK_STORES, INITIAL_PRODUCTS } from '../constants';
+import { INITIAL_PRODUCTS, MOCK_STORES } from '../constants';
+import { fetchRealStores } from '../services/overpassService';
 
 interface StoreContextType {
   user: UserState;
@@ -48,6 +49,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState(false);
   const [currentView, setCurrentView] = useState<'SHOP' | 'CART' | 'ORDERS' | 'PROFILE'>('SHOP');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [availableStores, setAvailableStores] = useState<Store[]>([]);
   const [toast, setToast] = useState<{ message: string; show: boolean; action?: { label: string; onClick: () => void } }>({
     message: '',
     show: false,
@@ -68,13 +70,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const clearCart = useCallback(() => setCart([]), []);
 
   const nearestStore = useMemo(() => {
-    if (!user.location) return MOCK_STORES[0];
-    return MOCK_STORES.reduce((prev, curr) => {
+    if (availableStores.length === 0) return null;
+    if (!user.location) return availableStores[0];
+    return availableStores.reduce((prev, curr) => {
         const dPrev = Math.sqrt(Math.pow(prev.lat - user.location!.lat, 2) + Math.pow(prev.lng - user.location!.lng, 2));
         const dCurr = Math.sqrt(Math.pow(curr.lat - user.location!.lat, 2) + Math.pow(curr.lng - user.location!.lng, 2));
         return dCurr < dPrev ? curr : prev;
     });
-  }, [user.location]);
+  }, [user.location, availableStores]);
 
   const activeStore = manualStore || nearestStore;
 
@@ -85,6 +88,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setManualStore(store);
       }
   };
+
+  const loadStores = useCallback(async (lat: number, lng: number) => {
+    setIsLoading(true);
+    const stores = await fetchRealStores(lat, lng);
+    
+    // STRICT DATA POLICY:
+    // If it's a real authenticated user, we ONLY show real stores found via API.
+    // We only use MOCK_STORES for the demo account.
+    if (user.id === 'demo-user') {
+        setAvailableStores(stores.length > 0 ? [...stores, ...MOCK_STORES] : MOCK_STORES);
+    } else if (user.isAuthenticated) {
+        setAvailableStores(stores);
+    } else {
+        // Not logged in yet, show mock data for visualization
+        setAvailableStores(MOCK_STORES);
+    }
+    
+    setIsLoading(false);
+  }, [user.id, user.isAuthenticated]);
+
+  useEffect(() => {
+    if (user.location) {
+      loadStores(user.location.lat, user.location.lng);
+    }
+  }, [user.location, loadStores]);
 
   const detectLocation = useCallback(async () => {
     if (!navigator.geolocation) {
@@ -176,7 +204,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{
-      user, setUser, cart, setCart, clearCart, activeStore, setActiveStore, availableStores: MOCK_STORES,
+      user, setUser, cart, setCart, clearCart, activeStore, setActiveStore, availableStores,
       orderMode, setOrderMode, addToCart, updateQuantity, detectLocation,
       isLoading, toast, showToast, hideToast, currentView, setCurrentView,
       orders, setOrders, addOrder, updateOrderStatus, pendingStoreSwitch, resolveStoreSwitch,
