@@ -4,6 +4,7 @@ import { UserState, SavedCard } from '../types';
 import { updateUserProfile } from '../services/userService';
 import SevenX7Logo from './SevenX7Logo';
 import AdsBanner from './AdsBanner';
+import { MOCK_ADS } from '../constants';
 
 interface UserProfileProps {
   user: UserState;
@@ -20,6 +21,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState(false);
   
+  // We exclusively use the SevenX7 Innovations ad for the spotlight section
+  const featuredAd = MOCK_ADS.find(ad => ad.partnerName.toLowerCase().includes('seven')) || MOCK_ADS[0];
+
   // Profile Form State
   const [formData, setFormData] = useState({
     name: user.name || '',
@@ -122,8 +126,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                         </button>
                     </div>
 
-                    {/* ADS BANNER - Extracted to dedicated component */}
-                    <AdsBanner />
+                    {/* SEVENX7 INNOVATIONS SPOTLIGHT */}
+                    <AdsBanner ad={featuredAd} />
 
                     {/* Menu Items */}
                     {!isEditing && (

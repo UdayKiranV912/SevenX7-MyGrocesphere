@@ -1,5 +1,5 @@
 
-import { Product, Store } from './types';
+import { Product, Store, AdCampaign } from './types';
 
 const VARIANTS_STAPLES = [
   { name: '1 kg', multiplier: 1 },
@@ -93,4 +93,19 @@ export const MOCK_STORES: Store[] = [
   { id: 'blr-ind-2', name: "MK Ahmed Bazaar", address: "12th Main, Indiranagar", rating: 4.5, distance: "0.5 km", lat: 12.9700, lng: 77.6380, isOpen: true, type: 'general', store_type: 'grocery', availableProductIds: GENERAL_IDS, upiId: 'mkahmed@okhdfc' },
   { id: 'blr-ind-3', name: "Hopcoms Fresh", address: "Double Road, Indiranagar", rating: 4.6, distance: "0.8 km", lat: 12.9750, lng: 77.6400, isOpen: true, type: 'produce', store_type: 'grocery', availableProductIds: PRODUCE_IDS, upiId: 'hopcoms@okicici' },
   { id: 'blr-korm-1', name: "Organic World", address: "6th Block, Koramangala", rating: 4.7, distance: "1.2 km", lat: 12.9345, lng: 77.6268, isOpen: true, type: 'produce', store_type: 'grocery', availableProductIds: PRODUCE_IDS, upiId: 'organicworld@oksbi' },
+];
+
+export const MOCK_ADS: AdCampaign[] = [
+  {
+    id: 'sevenx7-internal',
+    partnerName: 'SevenX7',
+    partnerSuffix: 'Innovations',
+    description: 'Pioneering the next generation of hyper-local ecosystems. Building technologies that empower community commerce.',
+    websiteUrl: 'https://www.sevenx7.com/',
+    displayUrl: 'www.sevenx7.com',
+    ctaText: 'Visit Website',
+    themeColor: 'emerald',
+    tag: 'Verified Partner',
+    icon: '🚀'
+  }
 ];

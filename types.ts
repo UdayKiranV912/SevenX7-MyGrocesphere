@@ -22,6 +22,21 @@ export interface Product {
   variants?: Variant[]; 
 }
 
+export interface AdCampaign {
+  id: string;
+  partnerName: string;
+  partnerSuffix?: string;
+  description: string;
+  websiteUrl?: string;
+  displayUrl: string;
+  ctaText: string;
+  themeColor: 'emerald' | 'blue' | 'orange' | 'purple' | 'amber';
+  tag?: string;
+  icon?: string;
+  internalStoreId?: string; // If set, clicking "Shop" will switch active store
+  internalView?: 'SHOP' | 'ORDERS' | 'CART'; // Navigation target within app
+}
+
 export interface Store {
   id: string;
   name: string;
