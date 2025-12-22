@@ -98,66 +98,82 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 isolate">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md transition-opacity animate-fade-in" onClick={onClose} />
+      {/* Backdrop with higher z-index to mask app nav */}
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-fade-in" onClick={onClose} />
       
-      <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-in border border-white/20">
+      <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scale-in border border-white/20">
         
+        {/* Header Indicator */}
+        <div className="w-full flex justify-center pt-3 pb-1 shrink-0 bg-white">
+            <div className="w-10 h-1 bg-slate-200 rounded-full" />
+        </div>
+
         {/* Scrollable Body Container */}
         <div className="flex-1 overflow-y-auto hide-scrollbar">
-            <div ref={contentRef} className="flex flex-col bg-white text-slate-900">
-                {/* Header */}
-                <div className="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-start">
+            <div ref={contentRef} className="flex flex-col bg-white text-slate-900 pb-8">
+                {/* Invoice Meta */}
+                <div className="p-6 pb-2 flex justify-between items-start">
                     <div>
-                        <div className="scale-75 origin-top-left">
+                        <div className="scale-90 origin-top-left grayscale mb-3">
                             <SevenX7Logo size="small" />
                         </div>
-                        <h2 className="font-black text-xl text-slate-800 mt-1">Tax Invoice</h2>
-                        <p className="text-[10px] font-mono text-slate-500 mt-1">INV-{order.id.toUpperCase().slice(-8)}</p>
+                        <h2 className="font-black text-2xl text-slate-900 tracking-tight">Tax Invoice</h2>
+                        <p className="text-[10px] font-mono text-slate-400 mt-1 uppercase tracking-widest">INV-{order.id.toUpperCase().slice(-8)}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Date</p>
-                        <p className="text-xs font-bold text-slate-800">{new Date(order.date).toLocaleDateString()}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase mt-2">Status</p>
-                        <p className="text-xs font-black text-green-600 uppercase">{order.paymentStatus}</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                        <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                           {order.paymentStatus}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="px-6 py-4 flex justify-between text-xs border-y border-slate-50 bg-slate-50/30 mt-4">
+                    <div className="space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Issued On</p>
+                        <p className="font-bold text-slate-900">{new Date(order.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</p>
+                        <p className="font-bold text-slate-900 uppercase tracking-tighter">{order.mode}</p>
                     </div>
                 </div>
 
                 {/* Info & Items */}
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-8">
                     {/* Store & Customer Info */}
-                    <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-2 gap-8 text-xs">
                         <div>
-                            <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Bill To</p>
-                            <p className="font-bold text-slate-900">Customer</p>
-                            <p className="text-slate-600 mt-0.5 leading-tight">{order.deliveryAddress || 'Store Pickup'}</p>
+                            <p className="font-black text-slate-400 uppercase text-[9px] mb-2 tracking-widest">Bill To</p>
+                            <p className="font-black text-slate-900 text-sm">Customer</p>
+                            <p className="text-slate-500 mt-1 leading-relaxed">{order.deliveryAddress || 'Verified Store Pickup'}</p>
                         </div>
                         <div className="text-right">
-                            <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Sold By</p>
-                            <p className="font-bold text-slate-900">{order.storeName}</p>
-                            <p className="text-slate-600 mt-0.5">Bengaluru, KA, India</p>
+                            <p className="font-black text-slate-400 uppercase text-[9px] mb-2 tracking-widest">Sold By</p>
+                            <p className="font-black text-slate-900 text-sm">{order.storeName}</p>
+                            <p className="text-slate-500 mt-1">Local Mart Partner<br/>Bengaluru, IN</p>
                         </div>
                     </div>
 
                     {/* Line Items Table */}
-                    <div className="overflow-x-auto">
+                    <div className="pt-2">
                         <table className="w-full text-left text-xs">
                             <thead>
-                                <tr className="border-b border-slate-200 text-slate-500 uppercase text-[10px]">
-                                    <th className="py-2 font-black">Item</th>
-                                    <th className="py-2 font-black text-center">Qty</th>
-                                    <th className="py-2 font-black text-right">Price</th>
+                                <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] tracking-widest">
+                                    <th className="pb-3 font-black">Particulars</th>
+                                    <th className="pb-3 font-black text-center">Qty</th>
+                                    <th className="pb-3 font-black text-right">Value</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-50">
                                 {order.items.map((item, idx) => (
                                     <tr key={idx}>
-                                        <td className="py-3 pr-2">
-                                            <p className="font-black text-slate-800 leading-tight">{item.name}</p>
-                                            <p className="text-[9px] text-slate-400 font-bold uppercase">{item.selectedBrand}</p>
+                                        <td className="py-4 pr-2">
+                                            <p className="font-black text-slate-900 leading-tight">{item.name}</p>
+                                            <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{item.selectedBrand}</p>
                                         </td>
-                                        <td className="py-3 text-center font-bold text-slate-700">{item.quantity}</td>
-                                        <td className="py-3 text-right font-black text-slate-900">₹{item.price * item.quantity}</td>
+                                        <td className="py-4 text-center font-bold text-slate-600">{item.quantity}</td>
+                                        <td className="py-4 text-right font-black text-slate-900 tabular-nums">₹{item.price * item.quantity}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -165,49 +181,49 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
                     </div>
 
                     {/* Totals Section */}
-                    <div className="border-t border-slate-200 pt-5 space-y-2.5">
-                        <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                            <span>Taxable Value</span>
-                            <span>₹{taxableValue.toFixed(2)}</span>
+                    <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 space-y-3">
+                        <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                            <span className="uppercase tracking-widest">Taxable Value</span>
+                            <span className="tabular-nums">₹{taxableValue.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                            <span>GST (5%)</span>
-                            <span>₹{taxAmount.toFixed(2)}</span>
+                        <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                            <span className="uppercase tracking-widest">GST (5% Integrated)</span>
+                            <span className="tabular-nums">₹{taxAmount.toFixed(2)}</span>
                         </div>
                         {deliveryFee > 0 && (
-                            <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                                <span>Delivery Fee</span>
-                                <span>₹{deliveryFee.toFixed(2)}</span>
+                            <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                                <span className="uppercase tracking-widest">Service Fee</span>
+                                <span className="tabular-nums">₹{deliveryFee.toFixed(2)}</span>
                             </div>
                         )}
-                        <div className="flex justify-between text-2xl font-black text-slate-900 pt-4 border-t border-slate-200 mt-3">
-                            <span className="tracking-tight">Total</span>
-                            <span className="tracking-tighter">₹{order.total.toFixed(2)}</span>
+                        <div className="flex justify-between items-center pt-5 border-t border-slate-200 mt-2">
+                            <span className="font-black text-[11px] uppercase tracking-widest text-slate-900">Total Payable</span>
+                            <span className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums">₹{order.total.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest pt-1">
-                            <span>Paid via</span>
-                            <span className="text-slate-900">{order.paymentMethod || 'Online'}</span>
-                        </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-center gap-2 text-[9px] font-black text-slate-300 uppercase tracking-[0.3em] pt-4">
+                        <span className="w-8 h-[1px] bg-slate-100"></span>
+                        <span>Official Receipt</span>
+                        <span className="w-8 h-[1px] bg-slate-100"></span>
                     </div>
                 </div>
             </div>
         </div>
 
-        {/* Persistent Footer Actions */}
-        <div className="p-5 border-t border-slate-100 bg-slate-50 flex gap-3 flex-shrink-0 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+        {/* Footer Actions */}
+        <div className="p-6 border-t border-slate-100 bg-white flex gap-3 shrink-0 z-10">
             <button 
                 onClick={onClose}
-                className="flex-1 h-12 bg-white border-2 border-slate-200 rounded-2xl font-black text-slate-600 text-[10px] uppercase tracking-widest shadow-sm hover:bg-slate-50 active:scale-95 transition-all"
+                className="flex-1 h-12 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-500 text-[10px] uppercase tracking-widest active:scale-95 transition-all"
             >
                 Close
             </button>
             <button 
                 onClick={handlePrint}
-                className="flex-[1.5] h-12 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-float active:scale-[0.98] flex items-center justify-center gap-2 transition-all"
+                className="flex-[1.5] h-12 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 PDF / Print
             </button>
         </div>

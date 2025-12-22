@@ -118,6 +118,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     setIsLoading(true);
+    // Real-time precision settings for improved accuracy
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -142,7 +143,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsLoading(false);
         showToast("Location denied");
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { 
+        enableHighAccuracy: true, 
+        timeout: 10000, 
+        maximumAge: 500 // Disallow stale locations
+      }
     );
   }, [showToast]);
 

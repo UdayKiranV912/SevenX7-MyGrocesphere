@@ -80,14 +80,14 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
       
       {!hideBrandName && (
         <span 
-          className={`font-black uppercase tracking-[0.25em] text-slate-400 leading-none ${
-            size === 'xs' ? 'text-[6px] mt-0.5' : 
-            size === 'small' ? 'text-[7px] mt-1' : 
-            size === 'medium' ? 'text-[10px] mt-1.5' : 
-            'text-[14px] mt-2'
+          className={`font-black uppercase tracking-[0.15em] text-slate-400 leading-none ${
+            size === 'xs' ? 'text-[5px] mt-0.5' : 
+            size === 'small' ? 'text-[6px] mt-1' : 
+            size === 'medium' ? 'text-[9px] mt-1.5' : 
+            'text-[12px] mt-2'
           }`}
         >
-          Grocesphere
+          Innovations
         </span>
       )}
     </div>

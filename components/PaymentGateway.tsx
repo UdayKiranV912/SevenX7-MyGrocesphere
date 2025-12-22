@@ -48,7 +48,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
   }, [savedCards, isDemo]);
 
   const getPaymentMethodString = () => {
-      if (selectedMethod === 'pay_at_store') return `Pay at Store (Cash/QR)`;
+      if (selectedMethod === 'pay_at_store') return `POP: Pickup and Pay (Direct Store)`;
       if (!isDemo && selectedUpiApp) return `UPI (${selectedUpiApp})`;
       if (selectedMethod === 'upi_new') return `UPI (${upiId || 'New'})`;
       const saved = savedCards?.find(c => c.id === selectedMethod);
@@ -132,9 +132,11 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
               <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8 animate-logo-x shadow-2xl">
                   <svg className="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
               </div>
-              <h2 className="text-3xl font-black mb-3">{selectedMethod === 'pay_at_store' ? 'Order Confirmed' : 'Payment Accepted'}</h2>
-              <p className="text-emerald-100 font-bold uppercase tracking-widest text-[10px] mb-12">
-                  {selectedMethod === 'pay_at_store' ? 'Proceed to mart for collection' : 'Funds received by platform admin'}
+              <h2 className="text-3xl font-black mb-3">{selectedMethod === 'pay_at_store' ? 'Order Finalized' : 'Payment Accepted'}</h2>
+              <p className="text-emerald-100 font-bold uppercase tracking-widest text-[10px] mb-12 leading-relaxed">
+                  {selectedMethod === 'pay_at_store' 
+                    ? 'Visit mart for collection & direct payment' 
+                    : 'Funds successfully received by platform admin'}
               </p>
               <button onClick={triggerSuccess} className="w-full max-w-xs bg-white text-emerald-700 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Continue</button>
           </div>
@@ -155,11 +157,11 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
           <div className="flex flex-col h-full animate-fade-in">
               <div className="bg-white p-6 pb-10 border-b border-slate-100 flex justify-between items-end shrink-0">
                   <div className="space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Settlement</p>
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{orderMode === 'PICKUP' ? 'Store Pickup' : 'Home Delivery'}</h2>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Secure Checkout</p>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{orderMode === 'PICKUP' ? 'Self Collection' : 'Fast Delivery'}</h2>
                       <div className="flex items-center gap-2 mt-2">
                         <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">Store: {storeName}</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">Mart: {storeName}</span>
                       </div>
                   </div>
                   <div className="text-right">
@@ -171,16 +173,16 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
               <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-40">
                   {orderMode === 'PICKUP' && (
                     <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest ml-1">Physical Payment</h3>
+                        <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest ml-1">Direct Settlement</h3>
                         <button 
                             onClick={() => { setSelectedMethod('pay_at_store'); handlePayAtStore(); }}
-                            className="w-full p-5 bg-emerald-500 text-white rounded-2xl border-2 border-emerald-400 flex items-center justify-between shadow-lg transition-all active:scale-[0.98] group"
+                            className="w-full p-5 bg-emerald-600 text-white rounded-2xl border-2 border-emerald-500 flex items-center justify-between shadow-lg transition-all active:scale-[0.98] group"
                         >
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🤝</div>
                                 <div className="text-left">
-                                    <span className="font-black text-sm uppercase tracking-tight block">Pay at Store</span>
-                                    <span className="text-[8px] font-bold opacity-80 uppercase">Cash or Direct QR</span>
+                                    <span className="font-black text-sm uppercase tracking-tight block">POP / Pickup and Pay</span>
+                                    <span className="text-[8px] font-bold opacity-80 uppercase tracking-widest">Pay via Cash or Mart QR at Store</span>
                                 </div>
                             </div>
                             <span className="text-white/40">→</span>
@@ -189,7 +191,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                   )}
 
                   <div className="space-y-3 pt-2">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Online Payment</h3>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Digital Payment</h3>
                       {['Google Pay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
                           <button 
                             key={app} 
@@ -207,10 +209,10 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
                   {isDemo && (
                       <div className="space-y-3 pt-4 border-t border-slate-100">
-                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sandbox Terminal</h3>
-                          <div className={`p-5 rounded-[2rem] border-2 transition-all ${selectedMethod === 'upi_new' ? 'bg-emerald-50 border-emerald-500 shadow-lg' : 'bg-white border-slate-100'}`} onClick={() => setSelectedMethod('upi_new')}>
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Simulation Mode</h3>
+                          <div className={`p-5 rounded-2xl border-2 transition-all ${selectedMethod === 'upi_new' ? 'bg-emerald-50 border-emerald-500 shadow-lg' : 'bg-white border-slate-100'}`} onClick={() => setSelectedMethod('upi_new')}>
                               <input 
-                                  placeholder="Enter UPI ID (user@bank)"
+                                  placeholder="Enter UPI ID (e.g. user@okaxis)"
                                   className="w-full bg-transparent text-sm font-black outline-none placeholder:text-slate-300"
                                   value={upiId}
                                   onChange={e => setUpiId(e.target.value)}
@@ -218,15 +220,15 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                           </div>
                           <button 
                             onClick={handleDemoPay}
-                            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-float active:scale-95 transition-all"
+                            className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[11px] shadow-float active:scale-95 transition-all"
                           >
-                              Verify Sandbox Payment
+                              Confirm Sandbox Payment
                           </button>
                       </div>
                   )}
               </div>
               
-              <button onClick={onCancel} className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Discard Order</button>
+              <button onClick={onCancel} className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Cancel Payment</button>
           </div>
       );
   };

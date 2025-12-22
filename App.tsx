@@ -64,13 +64,18 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (user.isAuthenticated && navigator.geolocation) {
         detectLocation();
+        // Improved high-precision real-time location watching
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
                 setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude } }));
             },
             (err) => console.warn("Watch GPS error:", err),
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            { 
+              enableHighAccuracy: true, 
+              maximumAge: 1000, // Frequent updates
+              timeout: 5000 
+            }
         );
     }
     return () => {
@@ -172,7 +177,7 @@ const AppContent: React.FC = () => {
             items: items,
             total: items.reduce((acc, item) => acc + (item.price * item.quantity), 0) + (pendingOrderDetails.splits?.deliveryFee || 0),
             status: 'Pending',
-            paymentStatus: paymentMethodString.includes('Cash') ? 'PENDING' : 'PAID',
+            paymentStatus: (paymentMethodString.includes('Cash') || paymentMethodString.includes('Store') || paymentMethodString.includes('POP')) ? 'PENDING' : 'PAID',
             paymentMethod: paymentMethodString,
             mode: orderMode,
             deliveryType: pendingOrderDetails.deliveryType,
@@ -204,7 +209,7 @@ const AppContent: React.FC = () => {
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
       {!showPaymentGateway && (
-        <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm shrink-0 safe-top">
+        <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-5 py-3 shadow-sm shrink-0 safe-top">
             <div className="max-w-md mx-auto grid grid-cols-3 items-center">
                 <div className="justify-self-start"><SevenX7Logo size="xs" /></div>
                 <div className="justify-self-center text-center">
@@ -227,7 +232,8 @@ const AppContent: React.FC = () => {
         </header>
       )}
 
-      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar pb-64">
+      {/* pb-28 to account for smaller nav height */}
+      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar pb-28">
         {currentView === 'SHOP' && <ShopPage />}
         {currentView === 'ORDERS' && <MyOrders userLocation={user.location} userId={user.id} />}
         {currentView === 'PROFILE' && <ProfilePage onBack={() => navigateTo('SHOP')} />}
@@ -250,9 +256,10 @@ const AppContent: React.FC = () => {
 
       {canShowNav && (
         <nav 
-          className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-[100] animate-slide-up"
+          className="fixed bottom-0 left-0 right-0 z-40 safe-bottom border-t border-slate-100 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.04)]"
         >
-           <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex justify-around items-center h-14 px-2">
+           {/* Slimmer height: h-13 (52px) */}
+           <div className="max-w-md mx-auto flex justify-around items-center h-13 px-2">
             {[
               { id: 'SHOP', icon: '🏠', label: 'Home' },
               { id: 'ORDERS', icon: '🧾', label: 'Orders' },
@@ -260,16 +267,16 @@ const AppContent: React.FC = () => {
             ].map((item) => {
                 const isActive = currentView === item.id;
                 return (
-                  <button key={item.id} onClick={() => navigateTo(item.id as any)} className={`flex flex-col items-center justify-center w-1/3 transition-all group relative ${isActive ? 'text-white' : 'text-slate-400/60'}`}>
-                      <div className={`relative mb-0.5 transition-all duration-300 ${item.animation ? 'scale-[1.3] -translate-y-2' : 'scale-100'} group-active:scale-90`}>
-                          <span className={`text-lg block transition-all ${isActive ? 'scale-110' : 'opacity-70 grayscale'}`}>{item.icon}</span>
+                  <button key={item.id} onClick={() => navigateTo(item.id as any)} className={`flex flex-col items-center justify-center w-1/3 transition-all group relative h-full ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      <div className={`relative flex items-center justify-center transition-all duration-300 ${item.animation ? 'scale-110' : 'scale-100'} group-active:scale-90`}>
+                          <span className={`text-lg block transition-all ${isActive ? 'filter-none' : 'grayscale opacity-50'}`}>{item.icon}</span>
                           {item.badge ? (
-                              <span className={`absolute -top-1 -right-2 min-w-[15px] h-[15px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border-2 border-slate-900 shadow-sm px-0.5 transition-all ${item.animation ? 'scale-125 bg-emerald-400' : 'scale-100'}`}>
+                              <span className={`absolute -top-1.5 -right-1.5 min-w-[12px] h-[12px] bg-emerald-500 text-white text-[6px] font-black flex items-center justify-center rounded-full border border-white shadow-sm px-0.5 transition-all ${item.animation ? 'scale-110' : 'scale-100'}`}>
                                   {item.badge}
                               </span>
                           ) : null}
                       </div>
-                      <span className={`text-[7px] font-black uppercase tracking-[0.15em] leading-none transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-30'}`}>{item.label}</span>
+                      <span className={`text-[6px] font-black uppercase tracking-[0.1em] mt-0.5 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>{item.label}</span>
                   </button>
                 );
             })}
