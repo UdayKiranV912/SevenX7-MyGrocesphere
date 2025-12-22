@@ -20,62 +20,40 @@ interface PaymentGatewayProps {
   storeName?: string;
 }
 
+const ADMIN_UPI_ID = 'sevenx7.admin@okaxis'; // Centralized admin receiver
+
 export const PaymentGateway: React.FC<PaymentGatewayProps> = ({ 
   amount, onSuccess, onCancel, isDemo, splits, savedCards = [], onSavePaymentMethod, storeName = 'Store'
 }) => {
-  const [step, setStep] = useState<'CONNECTING' | 'SELECT' | 'PROCESSING' | 'WAITING_CONFIRMATION' | 'SUCCESS'>('CONNECTING');
+  const [step, setStep] = useState<'CONNECTING' | 'SELECT' | 'PROCESSING' | 'WAITING_CONFIRMATION' | 'SUCCESS' | 'FAILURE'>('CONNECTING');
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   
-  // Input States
   const [upiId, setUpiId] = useState('');
-  const [saveMethod, setSaveMethod] = useState(true);
-  
-  // Real-time UPI App Selection
   const [selectedUpiApp, setSelectedUpiApp] = useState('');
 
-  // Refs for cleanup and single submission
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successCalledRef = useRef(false);
 
-  // Lock scroll on mount
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
-
-  // Initialize selected method
-  useEffect(() => {
-    // Simulate initial connection
     const timer = setTimeout(() => {
         if (isDemo) {
-            if (savedCards && savedCards.length > 0) {
-                setSelectedMethod(savedCards[0].id);
-            } else {
-                setSelectedMethod('upi_new');
-            }
+            if (savedCards && savedCards.length > 0) setSelectedMethod(savedCards[0].id);
+            else setSelectedMethod('upi_new');
         }
         setStep('SELECT');
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [savedCards, isDemo]);
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
+    }, 1200);
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      document.body.style.overflow = '';
+      clearTimeout(timer);
     };
-  }, []);
+  }, [savedCards, isDemo]);
 
   const getPaymentMethodString = () => {
       if (!isDemo && selectedUpiApp) return `UPI (${selectedUpiApp})`;
       if (selectedMethod === 'upi_new') return `UPI (${upiId || 'New'})`;
-      
       const saved = savedCards?.find(c => c.id === selectedMethod);
-      if (saved) return `UPI (${saved.upiId})`;
-      
-      return 'UPI Payment';
+      return saved ? `UPI (${saved.upiId})` : 'UPI Transfer';
   };
 
   const triggerSuccess = () => {
@@ -84,263 +62,150 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       onSuccess(getPaymentMethodString());
   };
 
-  // Demo Pay Flow (Mock)
   const handleDemoPay = () => {
     setStep('PROCESSING');
-    
     timerRef.current = setTimeout(() => {
-        if (saveMethod && onSavePaymentMethod && selectedMethod === 'upi_new' && upiId) {
-            onSavePaymentMethod({
-                id: `saved_upi_${Date.now()}`,
-                type: 'UPI',
-                upiId: upiId,
-                label: 'My UPI ID'
-            });
+        if (Math.random() < 0.1) {
+            setStep('FAILURE');
+            return;
         }
         setStep('SUCCESS');
-        timerRef.current = setTimeout(triggerSuccess, 2500);
+        timerRef.current = setTimeout(triggerSuccess, 2000);
     }, 2000);
   };
 
-  // Real-time Pay Flow (Redirect to UPI App)
   const handleRealTimeUpiSelect = (appName: string) => {
       setSelectedUpiApp(appName);
       setStep('PROCESSING');
       
-      const storeVpa = splits?.storeUpi;
-      const vpa = (storeVpa && storeVpa !== 'store@upi') ? storeVpa : 'merchant@upi';
-      const pn = encodeURIComponent(storeName);
-      const tn = encodeURIComponent(`Payment for Order`);
+      const pn = encodeURIComponent("SevenX7 Admin");
+      const tn = encodeURIComponent(`Order - ${storeName}`);
       const tr = `ORD${Date.now()}`;
-      const am = amount.toFixed(2);
-      const cu = 'INR';
-      
-      // Intent URL for UPI
-      const upiUrl = `upi://pay?pa=${vpa}&pn=${pn}&am=${am}&cu=${cu}&tn=${tn}&tr=${tr}`;
+      const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=${pn}&am=${amount.toFixed(2)}&cu=INR&tn=${tn}&tr=${tr}`;
       
       timerRef.current = setTimeout(() => {
-          // Trigger the deep link for real users
-          window.location.href = upiUrl;
-
-          // Move to waiting state
+          if (!isDemo) window.location.href = upiUrl;
           setStep('WAITING_CONFIRMATION');
-          
           timerRef.current = setTimeout(() => {
               setStep('SUCCESS');
-          }, 8000); 
-
+          }, 6000); 
       }, 1500);
   };
 
-  const renderPaymentContent = () => {
-      if (step === 'CONNECTING') {
-          return (
-            <div className="text-center py-20">
-                <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-slate-400 font-bold animate-pulse">Connecting to UPI Gateway...</p>
-            </div>
-          );
-      }
-
-      if (step === 'PROCESSING') {
-          return (
-             <div className="text-center bg-white p-8 rounded-[2rem] shadow-xl max-w-xs w-full mx-auto">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto border-4 border-emerald-100 animate-pulse mb-6">
-                    📱
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Opening {selectedUpiApp || 'UPI App'}</h3>
-                <p className="text-xs text-slate-500 mb-6">Securing your transaction...</p>
-                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 animate-[width_2s_ease-in-out_infinite] w-1/2"></div>
-                </div>
-             </div>
-          );
-      }
-
-      if (step === 'WAITING_CONFIRMATION') {
-          return (
-            <div className="text-center bg-white p-8 rounded-[2rem] shadow-xl max-w-xs w-full mx-auto animate-fade-in">
-               <div className="relative w-20 h-20 mx-auto mb-6">
-                   <div className="absolute inset-0 bg-yellow-100 rounded-full animate-ping opacity-75"></div>
-                   <div className="relative w-full h-full bg-yellow-50 text-yellow-600 rounded-full flex items-center justify-center text-4xl border-4 border-yellow-200">
-                       ⏳
-                   </div>
-               </div>
-               <h3 className="text-lg font-black text-slate-900 mb-2">Awaiting Confirmation</h3>
-               <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                   Please approve the request in your UPI app. Waiting for bank verification.
-               </p>
-               <div className="flex justify-center gap-1.5">
-                   <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                   <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                   <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-               </div>
-            </div>
-          );
-      }
-
-      if (step === 'SUCCESS') {
-        return (
-          <div className="fixed inset-0 z-[100] bg-emerald-600 flex flex-col items-center justify-center text-white animate-fade-in">
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 animate-bounce shadow-xl">
-              <svg className="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-black mb-2 text-center">Payment Done!</h2>
-            <p className="text-white/90 font-medium text-center max-w-xs mb-8">
-                Transaction ID: T{Math.random().toString(36).substr(2, 9).toUpperCase()}
-            </p>
-            <button 
-                onClick={triggerSuccess}
-                className="bg-white/20 hover:bg-white/30 text-white border border-white/40 px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest backdrop-blur-md transition-all"
-            >
-                Confirm Order
-            </button>
+  const renderContent = () => {
+      if (step === 'CONNECTING') return (
+          <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+              <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin mb-4" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Securing Connection...</p>
           </div>
-        );
-      }
+      );
+
+      if (step === 'PROCESSING') return (
+          <div className="text-center p-8 bg-white rounded-[2.5rem] shadow-2xl animate-scale-in max-w-xs mx-auto">
+              <div className="w-20 h-20 bg-slate-900 text-white rounded-[2rem] flex items-center justify-center text-4xl mx-auto mb-6 shadow-xl">📱</div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">Redirecting</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+                  Connecting to {selectedUpiApp || 'UPI secure layer'}
+              </p>
+          </div>
+      );
+
+      if (step === 'WAITING_CONFIRMATION') return (
+          <div className="text-center p-8 bg-white rounded-[2.5rem] shadow-2xl animate-scale-in max-w-xs mx-auto">
+              <div className="w-20 h-20 bg-yellow-50 text-yellow-600 rounded-[2rem] flex items-center justify-center text-4xl mx-auto mb-6 border-4 border-yellow-100 animate-pulse">⏳</div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">Awaiting Bank</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+                  Please approve the payment in your app. Admin is waiting for confirmation.
+              </p>
+          </div>
+      );
+
+      if (step === 'SUCCESS') return (
+          <div className="fixed inset-0 z-[200] bg-emerald-600 flex flex-col items-center justify-center text-white animate-fade-in p-8 text-center">
+              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8 animate-logo-x shadow-2xl">
+                  <svg className="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <h2 className="text-3xl font-black mb-3">Payment Accepted</h2>
+              <p className="text-emerald-100 font-bold uppercase tracking-widest text-[10px] mb-12">Admin successfully received funds</p>
+              <button onClick={triggerSuccess} className="w-full max-w-xs bg-white text-emerald-700 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Continue to Order</button>
+          </div>
+      );
+
+      if (step === 'FAILURE') return (
+          <div className="fixed inset-0 z-[200] bg-red-600 flex flex-col items-center justify-center text-white animate-fade-in p-8 text-center">
+              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8 shadow-2xl">
+                  <span className="text-5xl">❌</span>
+              </div>
+              <h2 className="text-3xl font-black mb-3">Payment Failed</h2>
+              <p className="text-red-100 font-bold uppercase tracking-widest text-[10px] mb-12 leading-relaxed">Transaction was declined or canceled. Please try again.</p>
+              <button onClick={() => setStep('SELECT')} className="w-full max-w-xs bg-white text-red-700 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Retry Payment</button>
+          </div>
+      );
 
       return (
-          <div className="flex flex-col h-full bg-slate-50">
-              <div className="bg-white p-6 pb-8 shadow-sm border-b border-slate-100 relative z-10">
-                  <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-2">
-                          <span className="w-2 h-6 bg-emerald-500 rounded-full"></span>
-                          <h2 className="text-lg font-black text-slate-800 uppercase tracking-wide">UPI Gateway</h2>
+          <div className="flex flex-col h-full animate-fade-in">
+              <div className="bg-white p-6 pb-10 border-b border-slate-100 flex justify-between items-end shrink-0">
+                  <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Admin Settlement</p>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">UPI Transfer</h2>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">To: {ADMIN_UPI_ID}</span>
                       </div>
-                      <div className="text-3xl font-black text-slate-900 tracking-tight">₹{amount}</div>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
-                      <span>Store:</span>
-                      <span className="font-bold text-slate-800 truncate max-w-[150px]">{storeName}</span>
+                  <div className="text-right">
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Due</p>
+                      <span className="text-3xl font-black tracking-tighter tabular-nums text-slate-900">₹{amount}</span>
                   </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
-                  {!isDemo ? (
-                      <div className="space-y-4 animate-slide-up">
-                           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Select UPI App</h3>
-                           {['Google Pay', 'PhonePe', 'Paytm', 'Amazon Pay', 'BHIM'].map((app) => {
-                               const isSelected = selectedUpiApp === app;
-                               return (
-                               <button 
-                                  key={app}
-                                  onClick={() => handleRealTimeUpiSelect(app)}
-                                  className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between active:scale-[0.98] ${
-                                      isSelected 
-                                      ? 'bg-emerald-50 border-emerald-500 shadow-md ring-2 ring-emerald-500/20' 
-                                      : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'
-                                  }`}
-                               >
-                                   <div className="flex items-center gap-4">
-                                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${isSelected ? 'bg-emerald-100' : 'bg-slate-50'}`}>
-                                          📱
-                                       </div>
-                                       <span className={`font-bold text-sm ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>{app}</span>
-                                   </div>
-                                   <div className={`bg-emerald-500 text-white rounded-full p-1 shadow-sm transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`}>
-                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                       </svg>
-                                   </div>
-                               </button>
-                               );
-                           })}
-                           <div className="mt-6 p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-[10px] text-emerald-800 leading-relaxed text-center font-bold">
-                               Secure 256-bit encrypted transaction
-                           </div>
-                      </div>
-                  ) : (
-                      <div className="space-y-4">
-                          {savedCards && savedCards.length > 0 && (
-                              <div className="space-y-2">
-                                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Saved VPA</h3>
-                                  {savedCards.map(card => {
-                                      const isSelected = selectedMethod === card.id;
-                                      return (
-                                      <div 
-                                        key={card.id}
-                                        onClick={() => setSelectedMethod(card.id)}
-                                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-500/20' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                                      >
-                                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${isSelected ? 'bg-emerald-100' : 'bg-slate-50'}`}>📱</div>
-                                          <div className="flex-1">
-                                              <p className={`font-black text-sm ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>{card.label}</p>
-                                              <p className={`text-[10px] font-bold font-mono uppercase ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>{card.upiId}</p>
-                                          </div>
-                                          <div className={`bg-emerald-500 text-white rounded-full p-1.5 shadow-sm transition-all ${isSelected ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>
-                                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
-                                              </svg>
-                                          </div>
-                                      </div>
-                                      );
-                                  })}
+              <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-40">
+                  <div className="space-y-3">
+                      <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest ml-1">Pay via UPI App</h3>
+                      {['Google Pay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
+                          <button 
+                            key={app} 
+                            onClick={() => handleRealTimeUpiSelect(app)}
+                            className="w-full p-5 bg-white rounded-2xl border-2 border-slate-100 flex items-center justify-between hover:border-slate-900 transition-all active:scale-[0.98] group"
+                          >
+                              <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">📱</div>
+                                  <span className="font-black text-sm text-slate-800 uppercase tracking-tight">{app}</span>
                               </div>
-                          )}
+                              <span className="text-slate-200 group-hover:text-slate-900 transition-colors">→</span>
+                          </button>
+                      ))}
+                  </div>
 
-                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mt-4">Add New UPI ID</h3>
-                          <div className={`bg-white rounded-[24px] overflow-hidden border-2 transition-all ${selectedMethod === 'upi_new' ? 'border-emerald-500 shadow-lg' : 'border-slate-200'}`}>
-                              <div className={`p-4 flex items-center gap-4 cursor-pointer ${selectedMethod === 'upi_new' ? 'bg-emerald-50/30' : ''}`} onClick={() => setSelectedMethod('upi_new')}>
-                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${selectedMethod === 'upi_new' ? 'bg-emerald-100' : 'bg-slate-50'}`}>📱</div>
-                                  <div className="flex-1 font-black text-slate-800 text-sm uppercase tracking-tight">Manual VPA Input</div>
-                                  <div className={`bg-emerald-500 text-white rounded-full p-1.5 shadow-sm transition-all ${selectedMethod === 'upi_new' ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                  </div>
-                              </div>
-                              {selectedMethod === 'upi_new' && (
-                                  <div className="p-4 pt-0 bg-white animate-fade-in">
-                                      <input 
-                                          type="text" 
-                                          placeholder="e.g. user@okhdfc" 
-                                          value={upiId}
-                                          onChange={(e) => setUpiId(e.target.value)}
-                                          className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-black outline-none focus:border-emerald-500 bg-slate-50/50"
-                                      />
-                                      <label className="flex items-center gap-3 cursor-pointer mt-3">
-                                          <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${saveMethod ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}`}>
-                                              {saveMethod && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                                              <input type="checkbox" checked={saveMethod} onChange={(e) => setSaveMethod(e.target.checked)} className="hidden" />
-                                          </div>
-                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Save securely for future</span>
-                                      </label>
-                                  </div>
-                              )}
+                  {isDemo && (
+                      <div className="space-y-3 pt-4 border-t border-slate-100">
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mock UPI Mode</h3>
+                          <div className={`p-5 rounded-[2rem] border-2 transition-all ${selectedMethod === 'upi_new' ? 'bg-emerald-50 border-emerald-500 shadow-lg' : 'bg-white border-slate-100'}`} onClick={() => setSelectedMethod('upi_new')}>
+                              <input 
+                                  placeholder="Enter UPI ID (user@bank)"
+                                  className="w-full bg-transparent text-sm font-black outline-none placeholder:text-slate-300"
+                                  value={upiId}
+                                  onChange={e => setUpiId(e.target.value)}
+                              />
                           </div>
+                          <button 
+                            onClick={handleDemoPay}
+                            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-float active:scale-95 transition-all"
+                          >
+                              Confirm Mock Payment
+                          </button>
                       </div>
                   )}
               </div>
-
-              {isDemo && (
-                  <div className="p-6 border-t border-slate-200 bg-white">
-                      <button 
-                        onClick={handleDemoPay}
-                        disabled={(selectedMethod === 'upi_new' && !upiId) || !selectedMethod}
-                        className="w-full h-14 bg-slate-900 text-white rounded-[20px] font-black shadow-float active:scale-[0.98] transition-all disabled:opacity-40 disabled:grayscale flex items-center justify-between px-8"
-                      >
-                          <span className="text-[10px] uppercase tracking-[0.2em]">Mock Payment</span>
-                          <span className="text-xl font-black tracking-tighter">₹{amount}</span>
-                      </button>
-                  </div>
-              )}
+              
+              <button onClick={onCancel} className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Abort Transaction</button>
           </div>
       );
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-gray-100 flex flex-col animate-fade-in">
-      <div className="bg-gray-800 p-3 flex items-center gap-3 shadow-md z-50">
-        <button onClick={onCancel} className="text-gray-400 hover:text-white">✕</button>
-        <div className="flex-1 bg-gray-700 rounded-lg px-4 py-2 text-xs text-green-400 font-mono flex items-center gap-2">
-          <span className="text-gray-400">🔒</span> https://secure.grocesphere.com/upi-gateway
-        </div>
-      </div>
-      <div className="flex-1 flex flex-col relative overflow-hidden">
-          {renderPaymentContent()}
-      </div>
+    <div className="fixed inset-0 z-[200] bg-slate-50 flex flex-col animate-fade-in overflow-hidden">
+      {renderContent()}
     </div>
   );
 };
