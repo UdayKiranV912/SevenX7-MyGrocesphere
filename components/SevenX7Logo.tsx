@@ -20,12 +20,12 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
   };
 
   const isLarge = size === 'large';
+  const isMedium = size === 'medium';
+  const isXS = size === 'xs';
   const textSizeClass = getTextSize();
   
-  // X needs to be significantly larger and bolder to act as the overlay anchor
-  const xSizeClass = isLarge ? 'text-6xl' : size === 'medium' ? 'text-3xl' : size === 'xs' ? 'text-sm' : 'text-xl';
+  const xSizeClass = isLarge ? 'text-6xl' : isMedium ? 'text-3xl' : isXS ? 'text-sm' : 'text-xl';
   
-  // Precise negative margins to force the 'X' to overlay the 'n' in Seven and the '7'
   const getOverlapMargin = () => {
     switch(size) {
       case 'large': return 'mx-[-14px]';
@@ -38,18 +38,32 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
   const marginClass = getOverlapMargin();
 
   return (
-    <div className="flex flex-col items-center select-none">
-      <div className="group flex items-center justify-center font-display leading-none h-fit">
+    <div className="flex flex-col items-center select-none relative">
+      <div className="group flex items-center justify-center font-display leading-none h-fit relative">
         
-        {/* SEVEN */}
-        <span 
-          className={`${textSizeClass} text-black font-black uppercase leading-none z-0`}
-          style={{ letterSpacing: '-0.02em' }}
-        >
-          Seven
-        </span>
+        {/* LEFT WING: SEVEN + INNOVATIONS STACK */}
+        <div className="flex flex-col items-start leading-none relative">
+            <span 
+              className={`${textSizeClass} text-black font-black uppercase leading-none z-0`}
+              style={{ letterSpacing: '-0.02em' }}
+            >
+              Seven
+            </span>
+            
+            {!hideBrandName && (
+               <span 
+                className="font-black uppercase tracking-[0.3em] text-slate-400 leading-none whitespace-nowrap mt-[2px]"
+                style={{ 
+                  fontSize: isLarge ? '7px' : isMedium ? '5px' : '4px',
+                  opacity: 0.8
+                }}
+              >
+                Innovations
+              </span>
+            )}
+        </div>
 
-        {/* X - The Overlaying Element */}
+        {/* CENTER: X */}
         <div 
           className={`relative flex items-center justify-center ${xSizeClass} leading-none ${marginClass} z-10 transition-transform group-hover:scale-110 duration-300`} 
           onClick={onNewsClick}
@@ -61,7 +75,6 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
                 fontFamily: 'Inter, sans-serif', 
                 fontWeight: 1000,
                 fontSize: '1.25em',
-                // Subtle white outline (stroke) to create depth when overlaying 'n' and '7'
                 filter: 'drop-shadow(1px 0 0 white) drop-shadow(-1px 0 0 white) drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white)'
               }}
            >
@@ -69,7 +82,7 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
            </span>
         </div>
 
-        {/* 7 */}
+        {/* RIGHT WING: 7 */}
         <span 
           className={`${textSizeClass} text-black font-black uppercase leading-none z-0`}
           style={{ letterSpacing: '-0.02em' }}
@@ -80,14 +93,14 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
       
       {!hideBrandName && (
         <span 
-          className={`font-black uppercase tracking-[0.15em] text-slate-400 leading-none ${
-            size === 'xs' ? 'text-[5px] mt-0.5' : 
-            size === 'small' ? 'text-[6px] mt-1' : 
-            size === 'medium' ? 'text-[9px] mt-1.5' : 
-            'text-[12px] mt-2'
+          className={`font-black uppercase tracking-[0.1em] text-slate-900 leading-none ${
+            isXS ? 'text-[6px] mt-3' : 
+            size === 'small' ? 'text-[8px] mt-3.5' : 
+            isMedium ? 'text-[12px] mt-4.5' : 
+            'text-[16px] mt-6'
           }`}
         >
-          Innovations
+          Grocesphere
         </span>
       )}
     </div>

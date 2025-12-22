@@ -64,7 +64,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (user.isAuthenticated && navigator.geolocation) {
         detectLocation();
-        // Improved high-precision real-time location watching
+        // Maximum precision real-time location watching
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
@@ -73,8 +73,8 @@ const AppContent: React.FC = () => {
             (err) => console.warn("Watch GPS error:", err),
             { 
               enableHighAccuracy: true, 
-              maximumAge: 1000, // Frequent updates
-              timeout: 5000 
+              maximumAge: 0, // Force fresh location, no caching
+              timeout: 10000 
             }
         );
     }
@@ -214,8 +214,9 @@ const AppContent: React.FC = () => {
                 <div className="justify-self-start"><SevenX7Logo size="xs" /></div>
                 <div className="justify-self-center text-center">
                     <button className="flex flex-col items-center group active:scale-95 transition-transform" onClick={detectLocation}>
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest truncate max-w-[140px] leading-none">
-                            {activeStore ? activeStore.name : 'Verified Marts'}
+                        {/* Branded "Grocesphere" header instead of activeStore name */}
+                        <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">
+                            Grocesphere
                         </span>
                         <div className="flex items-center gap-1 mt-1">
                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -232,8 +233,7 @@ const AppContent: React.FC = () => {
         </header>
       )}
 
-      {/* pb-28 to account for smaller nav height */}
-      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar pb-28">
+      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar pb-32">
         {currentView === 'SHOP' && <ShopPage />}
         {currentView === 'ORDERS' && <MyOrders userLocation={user.location} userId={user.id} />}
         {currentView === 'PROFILE' && <ProfilePage onBack={() => navigateTo('SHOP')} />}
@@ -258,7 +258,6 @@ const AppContent: React.FC = () => {
         <nav 
           className="fixed bottom-0 left-0 right-0 z-40 safe-bottom border-t border-slate-100 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.04)]"
         >
-           {/* Slimmer height: h-13 (52px) */}
            <div className="max-w-md mx-auto flex justify-around items-center h-13 px-2">
             {[
               { id: 'SHOP', icon: '🏠', label: 'Home' },

@@ -118,14 +118,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     setIsLoading(true);
-    // Real-time precision settings for improved accuracy
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
-          // Extract neighbor name for header feedback
           const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || 'My Area';
           setUser(prev => ({ 
             ...prev, 
@@ -146,7 +144,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       { 
         enableHighAccuracy: true, 
         timeout: 10000, 
-        maximumAge: 500 // Disallow stale locations
+        maximumAge: 0 // Disable cache to improve pinpoint accuracy
       }
     );
   }, [showToast]);

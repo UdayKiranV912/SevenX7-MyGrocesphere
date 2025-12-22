@@ -74,7 +74,7 @@ export const ShopPage: React.FC = () => {
         <div className="relative group max-w-md mx-auto">
             <input 
                 type="text" 
-                placeholder={activeStore ? `Search in ${activeStore.name}...` : "Find goods..."} 
+                placeholder="Search Grocesphere..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-11 bg-slate-100 rounded-2xl px-11 text-xs font-bold border-2 border-transparent outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white transition-all"
@@ -106,7 +106,7 @@ export const ShopPage: React.FC = () => {
                   }`}>
                       {activeStore.type === 'produce' ? '🥦' : activeStore.type === 'dairy' ? '🥛' : '🏪'}
                   </div>
-                  <span className="text-[8px] font-black text-slate-900 leading-tight truncate max-w-[120px] uppercase tracking-wider">{activeStore.name}</span>
+                  <span className="text-[8px] font-black text-slate-900 leading-tight truncate max-w-[120px] uppercase tracking-wider">Grocesphere</span>
               </div>
             </div>
         )}

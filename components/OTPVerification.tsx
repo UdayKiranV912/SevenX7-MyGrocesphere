@@ -79,18 +79,18 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 relative overflow-hidden text-center">
       {/* Background Orbs */}
       <div className="absolute top-[-100px] right-[-100px] w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-[-100px] left-[-100px] w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl"></div>
 
       <div className="z-10 w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative animate-scale-in">
         
-        <div className="p-8 pb-4 text-center">
-            <div className="flex justify-center transform scale-110 mb-2">
+        <div className="p-10 pb-4 text-center">
+            <div className="flex justify-center transform scale-110 mb-4">
                 <SevenX7Logo size="large" />
             </div>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Community Mart Network</p>
+            <div className="h-4"></div> {/* Spacer for Innovations tag in logo */}
         </div>
 
         <div className="p-8 pt-4">
