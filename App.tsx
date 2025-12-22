@@ -39,6 +39,7 @@ const AppContent: React.FC = () => {
     amount?: number;
     splits?: any;
     storeName?: string;
+    mode?: 'DELIVERY' | 'PICKUP';
   } | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
@@ -151,7 +152,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleProceedToPay = (details: { deliveryType: DeliveryType; scheduledTime?: string; isPayLater?: boolean; splits: any }) => {
-      setPendingOrderDetails({ ...details, storeName: activeStore?.name });
+      setPendingOrderDetails({ ...details, storeName: activeStore?.name, mode: orderMode });
       setShowPaymentGateway(true);
   };
 
@@ -171,7 +172,7 @@ const AppContent: React.FC = () => {
             items: items,
             total: items.reduce((acc, item) => acc + (item.price * item.quantity), 0) + (pendingOrderDetails.splits?.deliveryFee || 0),
             status: 'Pending',
-            paymentStatus: 'PAID',
+            paymentStatus: paymentMethodString.includes('Cash') ? 'PENDING' : 'PAID',
             paymentMethod: paymentMethodString,
             mode: orderMode,
             deliveryType: pendingOrderDetails.deliveryType,
@@ -226,7 +227,7 @@ const AppContent: React.FC = () => {
         </header>
       )}
 
-      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar pb-32">
+      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar pb-64">
         {currentView === 'SHOP' && <ShopPage />}
         {currentView === 'ORDERS' && <MyOrders userLocation={user.location} userId={user.id} />}
         {currentView === 'PROFILE' && <ProfilePage onBack={() => navigateTo('SHOP')} />}
@@ -242,16 +243,16 @@ const AppContent: React.FC = () => {
           <PaymentGateway 
              amount={pendingOrderDetails.amount || (pendingOrderDetails.splits ? (pendingOrderDetails.splits.storeAmount + (pendingOrderDetails.splits.deliveryFee || 0)) : 0)}
              savedCards={user.savedCards || []} onSuccess={(method) => finalizeOrder(method)} onCancel={() => setShowPaymentGateway(false)}
-             isDemo={user.id === 'demo-user'} storeName={pendingOrderDetails.storeName} splits={pendingOrderDetails.splits}
+             isDemo={user.id === 'demo-user'} storeName={pendingOrderDetails.storeName} splits={pendingOrderDetails.splits} orderMode={pendingOrderDetails.mode}
           />
         )}
       </main>
 
       {canShowNav && (
         <nav 
-          className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-3xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.1)] animate-slide-up"
+          className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-[100] animate-slide-up"
         >
-           <div className="flex justify-around items-center px-4 py-3">
+           <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex justify-around items-center h-14 px-2">
             {[
               { id: 'SHOP', icon: '🏠', label: 'Home' },
               { id: 'ORDERS', icon: '🧾', label: 'Orders' },
@@ -259,16 +260,16 @@ const AppContent: React.FC = () => {
             ].map((item) => {
                 const isActive = currentView === item.id;
                 return (
-                  <button key={item.id} onClick={() => navigateTo(item.id as any)} className={`flex flex-col items-center justify-center w-1/3 py-1 transition-all group relative ${isActive ? 'text-slate-900' : 'text-slate-300'}`}>
-                      <div className={`relative mb-1 transition-all duration-300 ${item.animation ? 'scale-[1.4] -translate-y-2' : 'scale-100'} group-active:scale-90`}>
-                          <span className={`text-2xl block transition-all ${isActive ? 'scale-110 drop-shadow-sm' : 'opacity-70 grayscale'}`}>{item.icon}</span>
+                  <button key={item.id} onClick={() => navigateTo(item.id as any)} className={`flex flex-col items-center justify-center w-1/3 transition-all group relative ${isActive ? 'text-white' : 'text-slate-400/60'}`}>
+                      <div className={`relative mb-0.5 transition-all duration-300 ${item.animation ? 'scale-[1.3] -translate-y-2' : 'scale-100'} group-active:scale-90`}>
+                          <span className={`text-lg block transition-all ${isActive ? 'scale-110' : 'opacity-70 grayscale'}`}>{item.icon}</span>
                           {item.badge ? (
-                              <span className={`absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] bg-emerald-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm px-0.5 transition-all ${item.animation ? 'scale-125 bg-emerald-400' : 'scale-100'}`}>
+                              <span className={`absolute -top-1 -right-2 min-w-[15px] h-[15px] bg-emerald-500 text-white text-[7px] font-black flex items-center justify-center rounded-full border-2 border-slate-900 shadow-sm px-0.5 transition-all ${item.animation ? 'scale-125 bg-emerald-400' : 'scale-100'}`}>
                                   {item.badge}
                               </span>
                           ) : null}
                       </div>
-                      <span className={`text-[8px] font-black uppercase tracking-[0.2em] leading-none transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0'}`}>{item.label}</span>
+                      <span className={`text-[7px] font-black uppercase tracking-[0.15em] leading-none transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-30'}`}>{item.label}</span>
                   </button>
                 );
             })}

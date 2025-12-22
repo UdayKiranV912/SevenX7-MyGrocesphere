@@ -123,17 +123,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
 
                     {/* Ads Banner Section - Prominent Layout */}
                     <div className="relative overflow-hidden bg-slate-900 rounded-[32px] p-6 shadow-xl group border-2 border-white/10">
-                         <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-brand-DEFAULT/20 rounded-full blur-3xl group-hover:bg-brand-DEFAULT/40 transition-colors duration-700"></div>
+                         <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/40 transition-colors duration-700"></div>
                          <div className="relative z-10 flex flex-col gap-4">
                             <div className="flex items-center gap-2">
                                 <span className="bg-emerald-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-lg">Ads Banner</span>
-                                <span className="text-[8px] text-white/40 font-black uppercase tracking-widest">Sponsored</span>
+                                <span className="text-[8px] text-white/40 font-black uppercase tracking-widest">Sponsored Partner</span>
                             </div>
                             <div>
-                                <h3 className="text-white font-black text-2xl leading-none tracking-tight">SevenX7 Plus</h3>
-                                <p className="text-slate-400 text-[10px] font-bold mt-2 uppercase tracking-widest leading-relaxed">Unlock priority routing, zero handling fees, and exclusive community harvests from top marts.</p>
+                                <h3 className="text-white font-black text-2xl leading-none tracking-tight">SevenX7 Plus Membership</h3>
+                                <p className="text-slate-400 text-[10px] font-bold mt-2 uppercase tracking-widest leading-relaxed">Unlock express delivery times and early access to fresh harvests from top community marts.</p>
                             </div>
-                            <button className="w-full bg-white text-slate-900 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">Get Plus Now</button>
+                            <button className="w-full bg-white text-slate-900 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">Claim Offer Now</button>
                          </div>
                     </div>
 
@@ -221,11 +221,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                         </section>
                         <section>
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">2. Payments</h3>
-                            <p>All payments are processed securely via UPI intent directly to the platform admin.</p>
+                            <p>All payments are processed securely. For Pickups, you can also pay directly at the store via Cash or QR.</p>
                         </section>
                         <section>
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">3. Delivery Policy</h3>
-                            <p>Delivery times are estimates. A ₹30 delivery fee applies per store on all delivery orders.</p>
+                            <p>Delivery times are estimates. A ₹30 fee applies to all orders to support community infrastructure.</p>
                         </section>
                         <section>
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">4. Privacy</h3>

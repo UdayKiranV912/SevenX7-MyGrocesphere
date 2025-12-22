@@ -117,8 +117,10 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
 
   const itemsTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const numStores = Object.keys(groupedItems).length;
-  // Delivery fee is mandatory for all orders as per request, no handling fees.
-  const deliveryFee = mode === 'DELIVERY' ? (BASE_DELIVERY_FEE * numStores) : 0;
+  
+  // As per request: Delivery fee is mandatory for all orders (Delivery & Pickup)
+  // No handling fees applied.
+  const deliveryFee = BASE_DELIVERY_FEE * numStores;
   const totalAmount = itemsTotal + deliveryFee;
 
   const handleUseCurrentLocation = async () => {
@@ -270,12 +272,10 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
                  <span>Items Subtotal</span>
                  <span className="text-white">₹{itemsTotal}</span>
              </div>
-             {mode === 'DELIVERY' && (
-                 <div className="flex justify-between text-[11px] font-bold text-slate-400">
-                     <span>Delivery Fee ({numStores} Stores)</span>
-                     <span className="text-white font-black">₹{deliveryFee}</span>
-                 </div>
-             )}
+             <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                 <span>Mandatory Fee ({numStores} Stores)</span>
+                 <span className="text-white font-black">₹{deliveryFee}</span>
+             </div>
              <div className="flex justify-between items-center pt-4 border-t border-white/10">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payable Total</span>
@@ -285,8 +285,8 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
          </div>
       </div>
 
-      {/* Fixed Confirm & Pay Bar - Positioned exactly above the bottom navigation */}
-      <div className="fixed bottom-[88px] left-0 right-0 max-w-md mx-auto z-[90] p-5 animate-slide-up">
+      {/* Floating Confirm & Pay Button - Placed above the slim navigation pill */}
+      <div className="fixed bottom-[84px] left-0 right-0 max-w-md mx-auto z-[90] px-4 animate-slide-up">
          <div className="bg-white/80 backdrop-blur-xl border border-slate-100 rounded-[28px] p-2 shadow-[0_-15px_40px_rgba(0,0,0,0.1)]">
              <button 
                 onClick={() => onProceedToPay({ 
@@ -301,8 +301,8 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
                 className="w-full h-14 bg-slate-900 text-white rounded-[22px] font-black shadow-float active:scale-[0.98] transition-all flex items-center justify-between px-7"
              >
                 <div className="flex flex-col items-start leading-none">
-                    <span className="text-[9px] uppercase tracking-[0.2em] opacity-60 mb-1">Final Step</span>
-                    <span className="text-[11px] uppercase tracking-[0.2em]">Confirm & Pay</span>
+                    <span className="text-[8px] uppercase tracking-[0.2em] opacity-40 mb-1">Final Step</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em]">Confirm & Pay</span>
                 </div>
                 <span className="text-xl font-black tracking-tighter tabular-nums border-l border-white/20 pl-4">₹{totalAmount}</span>
              </button>
