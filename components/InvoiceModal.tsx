@@ -24,7 +24,6 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
   const taxAmount = subtotal - taxableValue;
   
   const deliveryFee = order.splits?.deliveryFee || 0;
-  const handlingFee = order.splits?.handlingFee || 0;
 
   const handlePrint = () => {
       const content = contentRef.current;

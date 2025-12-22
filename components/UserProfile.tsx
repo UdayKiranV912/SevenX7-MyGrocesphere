@@ -92,7 +92,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
             <SevenX7Logo size="xs" />
         </div>
 
-        <div className="px-6 py-6 pb-24 space-y-6">
+        <div className="px-6 py-6 pb-40 space-y-6">
             {activeSection === 'MENU' && (
                 <div className="space-y-6 animate-fade-in">
                     {/* User Card */}
@@ -121,35 +121,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                         </button>
                     </div>
 
-                    {/* Editable Fields */}
-                    {isEditing && (
-                        <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm animate-slide-up space-y-6">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-900 uppercase tracking-widest ml-1 mb-2 block">Mobile Number</label>
-                                <input 
-                                    className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm font-black text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white transition-all"
-                                    value={formData.phone}
-                                    onChange={e => setFormData({...formData, phone: e.target.value})}
-                                    type="tel"
-                                />
+                    {/* Ads Banner Section - Prominent Layout */}
+                    <div className="relative overflow-hidden bg-slate-900 rounded-[32px] p-6 shadow-xl group border-2 border-white/10">
+                         <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-brand-DEFAULT/20 rounded-full blur-3xl group-hover:bg-brand-DEFAULT/40 transition-colors duration-700"></div>
+                         <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="bg-emerald-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-lg">Ads Banner</span>
+                                <span className="text-[8px] text-white/40 font-black uppercase tracking-widest">Sponsored</span>
                             </div>
                             <div>
-                                <label className="text-[10px] font-black text-slate-900 uppercase tracking-widest ml-1 mb-2 block">Email Address</label>
-                                <input 
-                                    className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm font-black text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white transition-all"
-                                    value={formData.email}
-                                    onChange={e => setFormData({...formData, email: e.target.value})}
-                                    type="email"
-                                />
+                                <h3 className="text-white font-black text-2xl leading-none tracking-tight">SevenX7 Plus</h3>
+                                <p className="text-slate-400 text-[10px] font-bold mt-2 uppercase tracking-widest leading-relaxed">Unlock priority routing, zero handling fees, and exclusive community harvests from top marts.</p>
                             </div>
-                            <button 
-                                onClick={handleSaveProfile}
-                                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-[0.98] transition-all mt-2"
-                            >
-                                Confirm Updates
-                            </button>
-                        </div>
-                    )}
+                            <button className="w-full bg-white text-slate-900 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">Get Plus Now</button>
+                         </div>
+                    </div>
 
                     {/* Menu Items */}
                     {!isEditing && (
@@ -235,11 +221,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                         </section>
                         <section>
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">2. Payments</h3>
-                            <p>All payments are processed securely via UPI intent. Real transactions involve actual funds; mock payments are for demo purposes only.</p>
+                            <p>All payments are processed securely via UPI intent directly to the platform admin.</p>
                         </section>
                         <section>
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">3. Delivery Policy</h3>
-                            <p>Delivery times are estimates. Real-time 🛵 tracking is provided for transparency but actual arrival depends on road conditions.</p>
+                            <p>Delivery times are estimates. A ₹30 delivery fee applies per store on all delivery orders.</p>
                         </section>
                         <section>
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">4. Privacy</h3>
@@ -249,7 +235,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                             <h3 className="text-[10px] font-black text-slate-900 uppercase mb-2 tracking-widest">5. Map Attribution & Credits</h3>
                             <p className="mb-2">Map data and geocoding services are provided by <strong className="text-slate-900">OpenStreetMap</strong> (OSM).</p>
                             <p className="italic">© OpenStreetMap contributors. Map rendering via CartoDB.</p>
-                            <p className="mt-2">Routing data is powered by the Project OSRM engine using OpenStreetMap data.</p>
                         </section>
                     </div>
                     <button 

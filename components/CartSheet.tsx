@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CartItem, DeliveryType, Store, Product } from '../types';
 
-// --- Compact Refined Cart Item Row ---
 interface CartItemRowProps {
   item: CartItem;
   onUpdateQuantity: (id: string, delta: number) => void;
@@ -93,7 +92,6 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
   deliveryAddress,
   onAddressChange,
   activeStore,
-  isPage = false,
   onClose
 }) => {
   const [isLocatingAddress, setIsLocatingAddress] = useState(false);
@@ -106,7 +104,6 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
     setScheduledTime(now.toISOString().slice(0, 16));
   }, []);
   
-  const MINIMUM_ORDER_VALUE = 1000; 
   const BASE_DELIVERY_FEE = 30;
 
   const groupedItems = React.useMemo(() => {
@@ -120,8 +117,8 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
 
   const itemsTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const numStores = Object.keys(groupedItems).length;
-  const isMovMet = itemsTotal >= MINIMUM_ORDER_VALUE;
-  const deliveryFee = mode === 'DELIVERY' ? (isMovMet ? 0 : BASE_DELIVERY_FEE * numStores) : 0;
+  // Delivery fee is mandatory for all orders as per request, no handling fees.
+  const deliveryFee = mode === 'DELIVERY' ? (BASE_DELIVERY_FEE * numStores) : 0;
   const totalAmount = itemsTotal + deliveryFee;
 
   const handleUseCurrentLocation = async () => {
@@ -155,8 +152,7 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      {/* Header with Close Button */}
+    <div className="flex flex-col h-full bg-slate-50 relative">
       <div className="px-6 py-4 bg-white border-b border-slate-100 flex justify-between items-center sticky top-0 z-20">
          <div className="flex items-center gap-3">
             {onClose && (
@@ -174,8 +170,7 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
          </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 pb-48 hide-scrollbar">
-         {/* Store Groups */}
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 pb-64 hide-scrollbar">
          <div className="space-y-4">
            {Object.entries(groupedItems).map(([storeId, items]) => {
               const storeItems = items as CartItem[];
@@ -201,7 +196,6 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
            })}
          </div>
 
-         {/* Preferences */}
          <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100 space-y-5">
             <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block ml-1">Receive Method</label>
@@ -271,7 +265,6 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
             )}
          </div>
 
-         {/* Final Bill */}
          <div className="bg-slate-900 p-6 rounded-[32px] shadow-xl text-white space-y-4">
              <div className="flex justify-between text-[11px] font-bold text-slate-400">
                  <span>Items Subtotal</span>
@@ -279,10 +272,8 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
              </div>
              {mode === 'DELIVERY' && (
                  <div className="flex justify-between text-[11px] font-bold text-slate-400">
-                     <span>Fee ({numStores} Stores)</span>
-                     <span className={isMovMet ? 'text-emerald-400 font-black' : 'text-white'}>
-                         {isMovMet ? 'FREE' : `₹${deliveryFee}`}
-                     </span>
+                     <span>Delivery Fee ({numStores} Stores)</span>
+                     <span className="text-white font-black">₹{deliveryFee}</span>
                  </div>
              )}
              <div className="flex justify-between items-center pt-4 border-t border-white/10">
@@ -294,9 +285,9 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
          </div>
       </div>
 
-      {/* Persistent Checkout Action */}
-      <div className="bg-white border-t border-slate-100 p-5 shadow-[0_-15px_40px_rgba(0,0,0,0.06)] z-30 sticky bottom-0 left-0 right-0 pb-10">
-         <div className="max-w-md mx-auto">
+      {/* Fixed Confirm & Pay Bar - Positioned exactly above the bottom navigation */}
+      <div className="fixed bottom-[88px] left-0 right-0 max-w-md mx-auto z-[90] p-5 animate-slide-up">
+         <div className="bg-white/80 backdrop-blur-xl border border-slate-100 rounded-[28px] p-2 shadow-[0_-15px_40px_rgba(0,0,0,0.1)]">
              <button 
                 onClick={() => onProceedToPay({ 
                     deliveryType: isScheduled ? 'SCHEDULED' : 'INSTANT', 
@@ -307,9 +298,12 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
                         storeUpi: activeStore?.upiId 
                     } 
                 })}
-                className="w-full h-14 bg-slate-900 text-white rounded-[20px] font-black shadow-float active:scale-[0.98] transition-all flex items-center justify-between px-7"
+                className="w-full h-14 bg-slate-900 text-white rounded-[22px] font-black shadow-float active:scale-[0.98] transition-all flex items-center justify-between px-7"
              >
-                <span className="text-[10px] uppercase tracking-[0.2em]">Confirm & Pay</span>
+                <div className="flex flex-col items-start leading-none">
+                    <span className="text-[9px] uppercase tracking-[0.2em] opacity-60 mb-1">Final Step</span>
+                    <span className="text-[11px] uppercase tracking-[0.2em]">Confirm & Pay</span>
+                </div>
                 <span className="text-xl font-black tracking-tighter tabular-nums border-l border-white/20 pl-4">₹{totalAmount}</span>
              </button>
          </div>

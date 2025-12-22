@@ -22,7 +22,6 @@ const AppContent: React.FC = () => {
     toast, hideToast, showToast,
     currentView, setCurrentView,
     orders, addOrder, updateOrderStatus,
-    pendingStoreSwitch, resolveStoreSwitch,
     driverLocations, setDriverLocations
   } = useStore();
 
@@ -45,7 +44,6 @@ const AppContent: React.FC = () => {
   const watchIdRef = useRef<number | null>(null);
   const simulationIntervals = useRef<Record<string, number>>({});
 
-  // Handle Cart Badge Animation
   useEffect(() => {
     const currentCount = cart.reduce((acc, item) => acc + item.quantity, 0);
     if (currentCount > prevCartCount.current) {
@@ -59,9 +57,7 @@ const AppContent: React.FC = () => {
   }, [cart]);
 
   useEffect(() => {
-    if (user.address) {
-        setDeliveryAddress(user.address);
-    }
+    if (user.address) setDeliveryAddress(user.address);
   }, [user.address]);
 
   useEffect(() => {
@@ -81,7 +77,6 @@ const AppContent: React.FC = () => {
     };
   }, [user.isAuthenticated, detectLocation, setUser]);
 
-  // Order Simulation Logic
   useEffect(() => {
     orders.forEach(async (order) => {
       if (order.status === 'Pending' && order.paymentStatus === 'PAID') {
@@ -201,16 +196,12 @@ const AppContent: React.FC = () => {
   }
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
-
-  // Persistence: Navigation is visible across Shop, Orders, and Cart.
-  // Profile is in the top right, so it's removed from bottom nav for space.
   const canShowNav = !showPaymentGateway;
 
   return (
     <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 overflow-hidden flex flex-col selection:bg-emerald-100 relative">
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
-      {/* Persistent Header */}
       {!showPaymentGateway && (
         <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm shrink-0 safe-top">
             <div className="max-w-md mx-auto grid grid-cols-3 items-center">
@@ -235,8 +226,7 @@ const AppContent: React.FC = () => {
         </header>
       )}
 
-      {/* Main Container */}
-      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar">
+      <main ref={mainRef} className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden scroll-smooth hide-scrollbar pb-32">
         {currentView === 'SHOP' && <ShopPage />}
         {currentView === 'ORDERS' && <MyOrders userLocation={user.location} userId={user.id} />}
         {currentView === 'PROFILE' && <ProfilePage onBack={() => navigateTo('SHOP')} />}
@@ -257,12 +247,11 @@ const AppContent: React.FC = () => {
         )}
       </main>
 
-      {/* Optimized 3-Item Persistent Bottom Navigation */}
       {canShowNav && (
         <nav 
-          className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/98 backdrop-blur-2xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.08)] animate-slide-up"
+          className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-3xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.1)] animate-slide-up"
         >
-           <div className="flex justify-around items-center px-4 py-2.5">
+           <div className="flex justify-around items-center px-4 py-3">
             {[
               { id: 'SHOP', icon: '🏠', label: 'Home' },
               { id: 'ORDERS', icon: '🧾', label: 'Orders' },
@@ -270,9 +259,9 @@ const AppContent: React.FC = () => {
             ].map((item) => {
                 const isActive = currentView === item.id;
                 return (
-                  <button key={item.id} onClick={() => navigateTo(item.id as any)} className={`flex flex-col items-center justify-center w-1/3 py-1.5 transition-all group relative ${isActive ? 'text-slate-900' : 'text-slate-300'}`}>
+                  <button key={item.id} onClick={() => navigateTo(item.id as any)} className={`flex flex-col items-center justify-center w-1/3 py-1 transition-all group relative ${isActive ? 'text-slate-900' : 'text-slate-300'}`}>
                       <div className={`relative mb-1 transition-all duration-300 ${item.animation ? 'scale-[1.4] -translate-y-2' : 'scale-100'} group-active:scale-90`}>
-                          <span className={`text-2xl block transition-all ${isActive ? 'scale-110' : 'opacity-70'}`}>{item.icon}</span>
+                          <span className={`text-2xl block transition-all ${isActive ? 'scale-110 drop-shadow-sm' : 'opacity-70 grayscale'}`}>{item.icon}</span>
                           {item.badge ? (
                               <span className={`absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] bg-emerald-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm px-0.5 transition-all ${item.animation ? 'scale-125 bg-emerald-400' : 'scale-100'}`}>
                                   {item.badge}
