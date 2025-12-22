@@ -84,7 +84,7 @@ export const ShopPage: React.FC = () => {
       </div>
 
       {/* Interactive Map Context */}
-      <div className="relative h-[160px] mb-4 overflow-hidden border-b border-slate-100 isolate">
+      <div className="relative h-[180px] mb-4 overflow-hidden border-b border-slate-100 isolate">
         <MapVisualizer 
           stores={availableStores}
           userLat={user.location?.lat || null}
@@ -98,7 +98,7 @@ export const ShopPage: React.FC = () => {
         <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-50 to-transparent pointer-events-none z-10" />
         
         {activeStore && (
-            <div className="absolute top-3 left-3 z-[500] animate-slide-up">
+            <div className="absolute top-3 left-3 z-[40] animate-slide-up">
               <div className="bg-white/95 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-float border border-white/50 flex items-center gap-2">
                   <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] shadow-sm ${
                       activeStore.type === 'produce' ? 'bg-emerald-500 text-white' : 
@@ -113,22 +113,23 @@ export const ShopPage: React.FC = () => {
       </div>
 
       {/* Category Scroller */}
-      <div className="mb-6">
-        <div className="px-5 mb-2">
-            <h2 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Category</h2>
+      <div className="mb-8">
+        <div className="px-5 mb-3 flex items-center justify-between">
+            <h2 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Shop Category</h2>
+            <div className="h-[1px] flex-1 bg-slate-100 ml-4"></div>
         </div>
-        <div className="overflow-x-auto hide-scrollbar px-4 flex gap-2">
+        <div className="overflow-x-auto hide-scrollbar px-4 flex gap-3">
            {availableCategories.map((family) => (
              <button 
                 key={family.id}
                 onClick={() => setSelectedCategory(family.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 border shrink-0 ${
+                className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl transition-all duration-300 border-2 shrink-0 ${
                   selectedCategory === family.id 
-                  ? 'bg-slate-900 border-slate-900 text-white shadow-md' 
-                  : 'bg-white border-slate-200 text-slate-600'
+                  ? 'bg-slate-900 border-slate-900 text-white shadow-lg -translate-y-0.5' 
+                  : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'
                 }`}
              >
-                <span className="text-xl">{family.emoji}</span>
+                <span className="text-xl transform group-hover:scale-110 transition-transform">{family.emoji}</span>
                 <span className="text-[10px] font-black uppercase tracking-tight whitespace-nowrap">{family.title}</span>
              </button>
            ))}
@@ -137,9 +138,9 @@ export const ShopPage: React.FC = () => {
 
       {/* Items Grid */}
       <div className="px-5">
-        <div className="flex items-center gap-2 mb-4">
-             <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
-             <h2 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+        <div className="flex items-center gap-2 mb-5">
+             <div className="w-1.5 h-4 bg-emerald-500 rounded-full shadow-glow"></div>
+             <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">
                  {PRODUCT_FAMILIES.find(f => f.id === selectedCategory)?.title || 'All Goods'}
              </h2>
         </div>
