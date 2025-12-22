@@ -70,8 +70,8 @@ const AppContent: React.FC = () => {
                 const { latitude, longitude } = position.coords;
                 setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude } }));
             },
-            (err) => console.warn("Watch position error:", err),
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+            (err) => console.warn("Watch GPS error:", err),
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
         );
     }
     return () => {
@@ -79,10 +79,9 @@ const AppContent: React.FC = () => {
     };
   }, [user.isAuthenticated, detectLocation, setUser]);
 
-  // --- Real-time Order Tracking Simulation ---
+  // --- Tracking Simulation ---
   useEffect(() => {
     orders.forEach(async (order) => {
-      // Logic for moving order statuses
       if (order.status === 'Pending' && order.paymentStatus === 'PAID') {
           setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
       }
@@ -90,7 +89,6 @@ const AppContent: React.FC = () => {
           setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
       }
       
-      // Tracking Logic: Only for 'On the way' delivery orders
       if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
           const targetLocation = user.location;
           if (!targetLocation || !order.storeLocation) return;
@@ -103,7 +101,7 @@ const AppContent: React.FC = () => {
           const path = await getRoute(startLat, startLng, endLat, endLng);
           let currentNodeIndex = 0;
           let nodeProgress = 0;
-          const speed = 0.15; // Animation speed
+          const speed = 0.15; 
 
           simulationIntervals.current[order.id] = window.setInterval(() => {
             if (currentNodeIndex >= path.length - 1) {
@@ -134,7 +132,6 @@ const AppContent: React.FC = () => {
             }
           }, 1000);
       } else if (order.status === 'On the way' && order.mode === 'PICKUP') {
-          // If pickup, mark ready after some time
           setTimeout(() => updateOrderStatus(order.id, 'Ready'), 8000);
       }
     });
@@ -168,6 +165,8 @@ const AppContent: React.FC = () => {
   const handleLoginSuccess = (userData: UserState) => {
     setUser(userData);
     window.history.replaceState({ view: 'SHOP' }, '');
+    setCurrentView('SHOP');
+    detectLocation();
   };
 
   const handleDemoLogin = () => {
@@ -181,11 +180,11 @@ const AppContent: React.FC = () => {
       savedCards: []
     });
     window.history.replaceState({ view: 'SHOP' }, '');
+    setCurrentView('SHOP');
   };
 
   const handleProceedToPay = (details: { deliveryType: DeliveryType; scheduledTime?: string; isPayLater?: boolean; splits: any }) => {
       setPendingOrderDetails({ ...details, storeName: activeStore?.name });
-      window.history.pushState({ view: currentView, modal: 'PAYMENT' }, '');
       setShowPaymentGateway(true);
   };
 
@@ -225,10 +224,11 @@ const AppContent: React.FC = () => {
 
     for (const order of newOrders) { await addOrder(order); }
     clearCart();
-    if (showPaymentGateway) window.history.back();
+    
     setShowPaymentGateway(false);
     setPendingOrderDetails(null);
-    navigateTo('ORDERS');
+    setCurrentView('ORDERS');
+    window.history.replaceState({ view: 'ORDERS' }, '');
   };
 
   if (!user.isAuthenticated) {
@@ -238,29 +238,32 @@ const AppContent: React.FC = () => {
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
+    <div className="min-h-[100dvh] bg-slate-50 font-sans text-slate-900 overflow-x-hidden flex flex-col selection:bg-emerald-100">
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
-      {/* Main Header */}
-      {currentView !== 'PROFILE' && currentView !== 'CART' && (
-        <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm">
+      {/* Optimized Header */}
+      {currentView !== 'PROFILE' && (
+        <header className="sticky top-0 z-[60] bg-white border-b border-slate-100 px-5 py-3 shadow-sm shrink-0 safe-top">
             <div className="max-w-md mx-auto grid grid-cols-3 items-center">
-                {/* Left: Logo */}
                 <div className="justify-self-start">
                     <SevenX7Logo size="xs" />
                 </div>
-
-                {/* Center: Store Name */}
                 <div className="justify-self-center text-center">
-                    <span 
-                        className="text-[10px] font-black text-slate-900 uppercase tracking-widest truncate block max-w-[140px] cursor-pointer" 
+                    <button 
+                        className="flex flex-col items-center group active:scale-95 transition-transform" 
                         onClick={detectLocation}
                     >
-                        {activeStore ? activeStore.name : 'Locating...'}
-                    </span>
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest truncate max-w-[140px] leading-none">
+                            {activeStore ? activeStore.name : 'Verified Marts'}
+                        </span>
+                        <div className="flex items-center gap-1 mt-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-tight">
+                                {(user as any).neighborhood || 'Locating...'}
+                            </span>
+                        </div>
+                    </button>
                 </div>
-
-                {/* Right: Profile */}
                 <div className="justify-self-end">
                     <button 
                         onClick={() => navigateTo('PROFILE')} 
@@ -273,7 +276,8 @@ const AppContent: React.FC = () => {
         </header>
       )}
 
-      <main className={`max-w-md mx-auto relative ${currentView === 'CART' ? 'h-screen overflow-hidden' : 'pb-16'}`}>
+      {/* Main viewport with dynamic height support */}
+      <main className="flex-1 max-w-md mx-auto w-full relative overflow-y-auto overflow-x-hidden">
         {currentView === 'SHOP' && <ShopPage />}
         {currentView === 'ORDERS' && <MyOrders userLocation={user.location} userId={user.id} />}
         {currentView === 'PROFILE' && <ProfilePage onBack={() => navigateTo('SHOP')} />}
@@ -301,7 +305,6 @@ const AppContent: React.FC = () => {
              savedCards={user.savedCards || []}
              onSuccess={(method) => finalizeOrder(method)}
              onCancel={() => {
-                 window.history.back();
                  setShowPaymentGateway(false);
              }}
              isDemo={user.id === 'demo-user'}
@@ -311,10 +314,10 @@ const AppContent: React.FC = () => {
         )}
       </main>
 
-      {/* Improved Bottom Navigation - Compact High-End UI */}
+      {/* Ultra-Compact Bottom Navigation */}
       {currentView !== 'PROFILE' && !showPaymentGateway && currentView !== 'CART' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-8px_25px_rgba(0,0,0,0.05)]">
-           <div className="max-w-md mx-auto flex justify-around items-center px-4 py-1.5">
+        <nav className="sticky bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 z-[100] pb-safe shadow-[0_-8px_25px_rgba(0,0,0,0.05)] shrink-0">
+           <div className="max-w-md mx-auto flex justify-around items-center px-4 py-2">
             {[
               { id: 'SHOP', icon: '🏠', label: 'Home' },
               { id: 'CART', icon: '🛒', label: 'Cart', badge: totalCartItems },
@@ -338,8 +341,6 @@ const AppContent: React.FC = () => {
                       <span className={`text-[6px] font-black uppercase tracking-[0.2em] transition-opacity leading-none ${isActive ? 'opacity-100' : 'opacity-0'}`}>
                           {item.label}
                       </span>
-                      
-                      {/* Slim Indicator */}
                       <div className={`h-0.5 bg-slate-900 rounded-full mt-1.5 transition-all duration-300 ${isActive ? 'w-4 opacity-100' : 'w-0 opacity-0'}`} />
                   </button>
                 );

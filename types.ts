@@ -35,6 +35,7 @@ export interface Store {
   store_type: 'grocery' | 'local_ecommerce';
   availableProductIds: string[]; 
   upiId?: string; 
+  isRegistered?: boolean;
 }
 
 export interface CartItem extends Product {
@@ -53,7 +54,7 @@ export type OrderType = 'grocery' | 'local_ecommerce';
 
 export interface SavedCard {
   id: string;
-  type: 'UPI'; // Restricted to UPI as requested
+  type: 'UPI'; 
   upiId: string; 
   label: string;
 }
@@ -65,6 +66,7 @@ export interface UserState {
   email?: string;
   name?: string;
   address?: string;
+  neighborhood?: string;
   location: { lat: number; lng: number } | null;
   savedCards?: SavedCard[];
   role?: 'customer' | 'store_owner' | 'delivery_partner' | 'admin';

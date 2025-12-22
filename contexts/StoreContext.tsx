@@ -91,22 +91,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const loadStores = useCallback(async (lat: number, lng: number) => {
     setIsLoading(true);
-    const stores = await fetchRealStores(lat, lng);
-    
-    // STRICT DATA POLICY:
-    // If it's a real authenticated user, we ONLY show real stores found via API.
-    // We only use MOCK_STORES for the demo account.
-    if (user.id === 'demo-user') {
-        setAvailableStores(stores.length > 0 ? [...stores, ...MOCK_STORES] : MOCK_STORES);
-    } else if (user.isAuthenticated) {
-        setAvailableStores(stores);
-    } else {
-        // Not logged in yet, show mock data for visualization
-        setAvailableStores(MOCK_STORES);
+    try {
+        const stores = await fetchRealStores(lat, lng);
+        if (user.id === 'demo-user') {
+            setAvailableStores(stores.length > 0 ? [...stores, ...MOCK_STORES] : MOCK_STORES);
+        } else {
+            setAvailableStores(stores);
+        }
+    } catch (e) {
+        if (user.id === 'demo-user') setAvailableStores(MOCK_STORES);
+        else setAvailableStores([]);
+    } finally {
+        setIsLoading(false);
     }
-    
-    setIsLoading(false);
-  }, [user.id, user.isAuthenticated]);
+  }, [user.id]);
 
   useEffect(() => {
     if (user.location) {
@@ -116,7 +114,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const detectLocation = useCallback(async () => {
     if (!navigator.geolocation) {
-      showToast("Geolocation not supported");
+      showToast("GPS not supported");
       return;
     }
     setIsLoading(true);
@@ -126,20 +124,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
+          // Extract neighbor name for header feedback
+          const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || 'My Area';
           setUser(prev => ({ 
             ...prev, 
             location: { lat: latitude, lng: longitude },
-            address: data.display_name
+            address: data.display_name || `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`,
+            neighborhood: neighborhood
           }));
         } catch (e) {
           setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude } }));
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       },
       () => {
         setIsLoading(false);
-        showToast("Location access denied");
-      }
+        showToast("Location denied");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   }, [showToast]);
 

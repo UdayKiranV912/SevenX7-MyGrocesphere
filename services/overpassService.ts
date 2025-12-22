@@ -8,14 +8,15 @@ const OVERPASS_ENDPOINTS = [
 ];
 
 /**
- * SIMULATED DATABASE REGISTRY
- * Only these IDs (or those randomly flagged for demo) are "Verified Marts"
+ * SIMULATED PARTNER DATABASE
+ * In a real scenario, this matches OSM nodes against your Supabase SQL table.
  */
-const REGISTERED_PARTNER_IDS = [
+const VERIFIED_PARTNER_IDS = [
   'osm-node/28362678',
   'osm-way/4952778',
   'osm-node/53234234',
-  'osm-node/12345678'
+  'osm-node/12345678',
+  'osm-node/245842103'
 ];
 
 export const fetchRealStores = async (lat: number, lng: number, radius: number = 5000): Promise<Store[]> => {
@@ -55,14 +56,16 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
 
           const id = `osm-${el.id}`;
           
-          // STRICT LOGIC: Must be in our "Partner Database"
-          const isRegistered = REGISTERED_PARTNER_IDS.includes(id) || (el.id % 6 === 0);
+          // VERIFICATION LOGIC: 
+          // Check if this OSM ID exists in our Partner Database.
+          // For this simulation, we also auto-verify nodes divisible by 5.
+          const isVerifiedInDB = VERIFIED_PARTNER_IDS.includes(id) || (el.id % 5 === 0);
 
           return {
             id,
             name: el.tags.name,
-            address: el.tags['addr:street'] || el.tags['addr:full'] || 'Verified Locality',
-            rating: 4.1 + (Math.random() * 0.9),
+            address: el.tags['addr:street'] || el.tags['addr:full'] || 'Local Mart Partner',
+            rating: 4.2 + (Math.random() * 0.7),
             distance: 'Nearby',
             lat: el.lat || el.center?.lat,
             lng: el.lon || el.center?.lon,
@@ -71,12 +74,12 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
             store_type: 'grocery',
             availableProductIds: availableProductIds,
             upiId: `${el.tags.name.toLowerCase().replace(/\s/g, '')}@okaxis`,
-            isRegistered: isRegistered
+            isRegistered: isVerifiedInDB
           };
         })
-        .filter((s: any) => s.lat && s.lng && s.isRegistered); // ONLY RETURN VERIFIED MARTS
+        .filter((s: any) => s.lat && s.lng && s.isRegistered); // ONLY RETURN REGISTERED MARTS
     } catch (error) {
-      console.warn(`Endpoint ${endpoint} failed, trying next...`);
+      console.warn(`Node ${endpoint} failed, trying secondary...`);
       continue;
     }
   }
