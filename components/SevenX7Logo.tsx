@@ -14,7 +14,7 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
       case 'xs': return 'text-[10px]';
       case 'small': return 'text-xs';
       case 'medium': return 'text-xl';
-      case 'large': return 'text-4xl';
+      case 'large': return 'text-5xl';
       default: return 'text-xs';
     }
   };
@@ -24,14 +24,14 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
   const isXS = size === 'xs';
   const textSizeClass = getTextSize();
   
-  const xSizeClass = isLarge ? 'text-6xl' : isMedium ? 'text-3xl' : isXS ? 'text-sm' : 'text-xl';
+  const xSizeClass = isLarge ? 'text-7xl' : isMedium ? 'text-4xl' : isXS ? 'text-sm' : 'text-2xl';
   
   const getOverlapMargin = () => {
     switch(size) {
-      case 'large': return 'mx-[-14px]';
-      case 'medium': return 'mx-[-7px]';
+      case 'large': return 'mx-[-16px]';
+      case 'medium': return 'mx-[-8px]';
       case 'xs': return 'mx-[-2px]';
-      default: return 'mx-[-4px]';
+      default: return 'mx-[-5px]';
     }
   };
 
@@ -39,10 +39,10 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
 
   return (
     <div className="flex flex-col items-center select-none relative">
-      <div className="group flex items-center justify-center font-display leading-none h-fit relative">
+      <div className="group flex items-center justify-center font-display leading-none h-fit">
         
-        {/* LEFT WING: SEVEN + INNOVATIONS STACK */}
-        <div className="flex flex-col items-start leading-none relative">
+        {/* LEFT BLOCK: SEVEN + INNOVATIONS */}
+        <div className="flex flex-col items-start leading-none">
             <span 
               className={`${textSizeClass} text-black font-black uppercase leading-none z-0`}
               style={{ letterSpacing: '-0.02em' }}
@@ -52,9 +52,10 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
             
             {!hideBrandName && (
                <span 
-                className="font-black uppercase tracking-[0.3em] text-slate-400 leading-none whitespace-nowrap mt-[2px]"
+                className="font-black uppercase tracking-[0.3em] text-slate-400 leading-none whitespace-nowrap"
                 style={{ 
-                  fontSize: isLarge ? '7px' : isMedium ? '5px' : '4px',
+                  fontSize: isLarge ? '8px' : isMedium ? '5.5px' : isXS ? '3px' : '4px',
+                  marginTop: isLarge ? '2px' : '1px',
                   opacity: 0.8
                 }}
               >
@@ -74,7 +75,7 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
               style={{ 
                 fontFamily: 'Inter, sans-serif', 
                 fontWeight: 1000,
-                fontSize: '1.25em',
+                fontSize: '1.2em',
                 filter: 'drop-shadow(1px 0 0 white) drop-shadow(-1px 0 0 white) drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white)'
               }}
            >
@@ -82,7 +83,7 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
            </span>
         </div>
 
-        {/* RIGHT WING: 7 */}
+        {/* RIGHT BLOCK: 7 */}
         <span 
           className={`${textSizeClass} text-black font-black uppercase leading-none z-0`}
           style={{ letterSpacing: '-0.02em' }}
@@ -93,11 +94,11 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
       
       {!hideBrandName && (
         <span 
-          className={`font-black uppercase tracking-[0.1em] text-slate-900 leading-none ${
+          className={`font-black uppercase tracking-[0.12em] text-slate-900 leading-none ${
             isXS ? 'text-[6px] mt-3' : 
-            size === 'small' ? 'text-[8px] mt-3.5' : 
-            isMedium ? 'text-[12px] mt-4.5' : 
-            'text-[16px] mt-6'
+            size === 'small' ? 'text-[8px] mt-4' : 
+            isMedium ? 'text-[12px] mt-5' : 
+            'text-[18px] mt-7'
           }`}
         >
           Grocesphere
