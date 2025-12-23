@@ -175,7 +175,6 @@ const AppContent: React.FC = () => {
     setCurrentView('ORDERS');
   };
 
-  // Fix: Define canShowNav based on whether the payment gateway is active
   const canShowNav = !showPaymentGateway;
 
   if (!user.isAuthenticated) {
@@ -192,7 +191,7 @@ const AppContent: React.FC = () => {
       );
     }
 
-    if (availableStores.length === 0) {
+    if (!isLoading && availableStores.length === 0) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
            <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none uppercase">Coming Soon</span>
@@ -205,7 +204,7 @@ const AppContent: React.FC = () => {
       return (
         <div className="flex flex-col items-center animate-fade-in">
            <span className="text-[7px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-0.5">Shopping At</span>
-           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[180px]">
+           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[140px]">
               {activeStore.name}
            </span>
         </div>
@@ -225,15 +224,15 @@ const AppContent: React.FC = () => {
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
       {!showPaymentGateway && (
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-5 py-3 shadow-sm shrink-0 safe-top">
+        <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3 shadow-sm shrink-0 safe-top">
             <div className="max-w-md mx-auto flex items-center justify-between">
-                <div className="w-12 flex justify-start">
-                    <SevenX7Logo size="xs" hideBrandName />
+                <div className="flex-shrink-0 flex justify-start items-center min-w-[80px]">
+                    <SevenX7Logo size="xs" />
                 </div>
-                <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform" onClick={detectLocation}>
+                <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform px-2" onClick={detectLocation}>
                     {renderHeaderCenter()}
                 </button>
-                <div className="w-12 flex justify-end">
+                <div className="flex-shrink-0 flex justify-end min-w-[40px]">
                     <button onClick={() => navigateTo('PROFILE')} className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg transition-transform active:scale-90 ring-2 ring-white">
                         {user.name?.charAt(0) || 'U'}
                     </button>

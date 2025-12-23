@@ -42,10 +42,8 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   
   const [isLocating, setIsLocating] = useState(false);
   const [followUser, setFollowUser] = useState(true);
-  const [mapType, setMapType] = useState<'STREET' | 'DARK'>('STREET');
   
   const prevBoundsHash = useRef<string>("");
-  const prevRouteKey = useRef<string>("");
   const [routePath, setRoutePath] = useState<[number, number][]>([]);
 
   const getMarkerHtml = (type: Store['type'], isSelected: boolean) => {
@@ -86,11 +84,6 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     setTimeout(() => setIsLocating(false), 2000);
   };
 
-  const toggleMapType = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setMapType(prev => prev === 'STREET' ? 'DARK' : 'STREET');
-  };
-
   useEffect(() => {
     const L = (window as any).L;
     if (!L || !mapContainerRef.current) return;
@@ -112,13 +105,14 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       });
     }
 
+    // Hardcoded to street tiles as requested
     const streetTiles = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    const darkTiles = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
     
-    if (mapInstanceRef.current._tileLayer) mapInstanceRef.current.removeLayer(mapInstanceRef.current._tileLayer);
-    mapInstanceRef.current._tileLayer = L.tileLayer(mapType === 'STREET' ? streetTiles : darkTiles, {
-        maxZoom: 21
-    }).addTo(mapInstanceRef.current);
+    if (!mapInstanceRef.current._tileLayer) {
+      mapInstanceRef.current._tileLayer = L.tileLayer(streetTiles, {
+          maxZoom: 21
+      }).addTo(mapInstanceRef.current);
+    }
 
     if (userLat && userLng) {
       if (!userMarkerRef.current) {
@@ -217,7 +211,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
 
     if (routePath.length > 0) {
        routeLineRef.current = L.polyline(routePath, {
-         color: mapType === 'STREET' ? '#10b981' : '#34d399',
+         color: '#10b981',
          weight: 6,
          opacity: 0.9,
          lineCap: 'round',
@@ -242,7 +236,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
         }
     }
 
-  }, [stores, userLat, userLng, userAccuracy, selectedStore, showRoute, mode, driverLocation, routePath, mapType, followUser, isLocating]);
+  }, [stores, userLat, userLng, userAccuracy, selectedStore, showRoute, mode, driverLocation, routePath, followUser, isLocating]);
 
   useEffect(() => {
     let isActive = true;
@@ -275,16 +269,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     <div className={`relative w-full bg-slate-100 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full z-0 transition-opacity duration-700" />
       
-      <div className="absolute bottom-4 left-4 right-4 z-[500] flex items-center justify-between pointer-events-none">
-          <div className="flex gap-2 pointer-events-auto">
-              <button 
-                onClick={toggleMapType}
-                className="w-11 h-11 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center text-slate-800 border border-white/50 transition-all active:scale-90"
-              >
-                  {mapType === 'STREET' ? '🌙' : '☀️'}
-              </button>
-          </div>
-
+      <div className="absolute bottom-4 left-4 right-4 z-[500] flex items-center justify-end pointer-events-none">
           <button 
             onClick={handleRecenter}
             className={`w-11 h-11 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center transition-all active:scale-90 border pointer-events-auto ${

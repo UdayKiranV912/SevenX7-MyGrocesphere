@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
 import { MOCK_STORES } from '../constants';
@@ -83,31 +82,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const activeStore = manualStore || nearestStore;
 
-  const loadStores = useCallback(async (lat: number, lng: number) => {
+  const loadStores = useCallback(async (lat?: number, lng?: number) => {
+    if (user.id === 'demo-user') {
+        setAvailableStores(MOCK_STORES);
+        setIsLoading(false);
+        return;
+    }
+
+    if (!lat || !lng) return;
+
     setIsLoading(true);
     try {
-        if (user.id === 'demo-user') {
-            setAvailableStores(MOCK_STORES);
-        } else {
-            const stores = await fetchVerifiedStores(lat, lng);
-            const hydratedStores = await Promise.all(stores.map(async (s) => {
-                const inventory = await fetchStoreInventory(s.id);
-                return { ...s, availableProductIds: inventory.map(i => i.product_id) };
-            }));
-            setAvailableStores(hydratedStores);
-        }
+        const stores = await fetchVerifiedStores(lat, lng);
+        const hydratedStores = await Promise.all(stores.map(async (s) => {
+            const inventory = await fetchStoreInventory(s.id);
+            return { ...s, availableProductIds: inventory.map(i => i.product_id) };
+        }));
+        setAvailableStores(hydratedStores);
     } catch (e) {
-        setAvailableStores(user.id === 'demo-user' ? MOCK_STORES : []);
+        setAvailableStores([]);
     } finally {
         setIsLoading(false);
     }
   }, [user.id]);
 
   useEffect(() => {
-    if (user.location) loadStores(user.location.lat, user.location.lng);
-  }, [user.location, loadStores]);
+    if (user.id === 'demo-user') {
+        setAvailableStores(MOCK_STORES);
+        setIsLoading(false);
+    } else if (user.location) {
+        loadStores(user.location.lat, user.location.lng);
+    }
+  }, [user.location, user.id, loadStores]);
 
-  // Listen for order status updates from Supabase
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
         const channel = supabase
@@ -150,10 +157,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setIsLoading(false);
         }
       },
-      () => { setIsLoading(false); showToast("Location denied"); },
+      () => { 
+        setIsLoading(false); 
+        if (user.id !== 'demo-user') {
+          showToast("Location denied"); 
+        } else {
+          // Default demo location if denied
+          setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
+        }
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  }, [showToast]);
+  }, [showToast, user.id]);
 
   const addToCart = useCallback((product: Product, quantity = 1, brand?: string, price?: number, variant?: any) => {
     setCart(prev => {
@@ -181,7 +196,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addOrder = useCallback(async (order: Order) => {
       if (user.id && user.id !== 'demo-user') {
-          // 1. Insert into 'orders' table
           const { data: orderData, error: orderError } = await supabase.from('orders').insert({
               customer_id: user.id,
               store_id: order.items[0].storeId,
@@ -197,7 +211,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           if (orderData) {
-              // 2. Insert normalized items (Optional based on schema but recommended)
               const itemsToInsert = order.items.map(item => ({
                   order_id: orderData.id,
                   product_id: item.originalProductId,
@@ -206,14 +219,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }));
               await supabase.from('order_items').insert(itemsToInsert);
 
-              // 3. Insert payment split (routed to Super Admin UPI)
               await supabase.from('payment_splits').insert({
                   order_id: orderData.id,
                   store_amount: order.splits?.storeAmount || 0,
                   delivery_fee: order.splits?.deliveryFee || 0,
-                  admin_amount: 5, // Example admin fee
+                  admin_amount: 5,
                   store_upi: order.splits?.storeUpi || '',
-                  admin_upi: 'sevenx7.admin@okaxis', // Fixed Admin UPI
+                  admin_upi: 'sevenx7.admin@okaxis',
                   total_paid: order.total
               });
 

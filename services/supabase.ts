@@ -1,11 +1,13 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 // Safely retrieve environment variables. 
-// We provide valid-structured placeholders to prevent library initialization errors (like 'supabaseUrl is required').
-const supabaseUrl = (process.env as any).SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = (process.env as any).SUPABASE_ANON_KEY || 'placeholder-key';
+const rawUrl = (process.env as any).SUPABASE_URL;
+const rawKey = (process.env as any).SUPABASE_ANON_KEY;
 
-// Initialize the client. If placeholders are used, actual network requests will fail gracefully 
-// but the application won't crash on load.
+const supabaseUrl = rawUrl && rawUrl.length > 10 ? rawUrl : 'https://placeholder.supabase.co';
+const supabaseAnonKey = rawKey && rawKey.length > 10 ? rawKey : 'placeholder-key';
+
+// Check if we are using the placeholder to provide better error feedback later
+export const isSupabaseConfigured = supabaseUrl !== 'https://placeholder.supabase.co';
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

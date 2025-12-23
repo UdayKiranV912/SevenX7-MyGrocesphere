@@ -1,9 +1,12 @@
 
 import { UserState } from '../types';
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 export const registerUser = async (email: string, pass: string, name: string, phone: string) => {
-    // 1. Create the Auth User
+    if (!isSupabaseConfigured) {
+        throw new Error("Backend not configured. Please check SUPABASE_URL and SUPABASE_ANON_KEY environment variables.");
+    }
+
     const { data, error } = await supabase.auth.signUp({
         email,
         password: pass,
@@ -18,7 +21,6 @@ export const registerUser = async (email: string, pass: string, name: string, ph
 
     if (error) throw error;
 
-    // 2. Ensure Profile exists in public.profiles (Backend trigger should handle this, but we force it for resilience)
     if (data.user) {
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
@@ -34,6 +36,10 @@ export const registerUser = async (email: string, pass: string, name: string, ph
 };
 
 export const loginUser = async (email: string, pass: string): Promise<UserState> => {
+    if (!isSupabaseConfigured) {
+        throw new Error("Backend not configured. Please use Demo Mode or configure environment variables.");
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: pass
@@ -41,7 +47,6 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 
     if (error) throw error;
 
-    // Fetch the extended profile data
     const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -61,6 +66,7 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 };
 
 export const updateUserProfile = async (id: string, updates: any) => {
+    if (!isSupabaseConfigured) return true;
     const { error } = await supabase
         .from('profiles')
         .update(updates)
