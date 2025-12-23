@@ -72,34 +72,31 @@ const SevenX7Logo: React.FC<SevenX7LogoProps> = ({ size = 'small', onNewsClick, 
       </div>
       
       {/* Subtitles: Innovations & Grocesphere */}
-      {!hideBrandName && (
-        <div className="flex flex-col items-center w-full mt-1.5">
-          {/* Innovations Subtitle - High Spacing Tech Style */}
+      <div className="flex flex-col items-center w-full mt-1">
+        <span 
+          className="font-black uppercase tracking-[0.55em] text-emerald-500 leading-none whitespace-nowrap text-center"
+          style={{ 
+            fontSize: isLarge ? '14px' : isMedium ? '10px' : isXS ? '5px' : '7px',
+            opacity: 0.95,
+            marginLeft: '0.55em'
+          }}
+        >
+          Innovations
+        </span>
+        
+        {!hideBrandName && (
           <span 
-            className="font-black uppercase tracking-[0.55em] text-emerald-500 leading-none whitespace-nowrap text-center"
-            style={{ 
-              fontSize: isLarge ? '14px' : isMedium ? '10px' : isXS ? '6px' : '8px',
-              opacity: 0.95,
-              marginBottom: isXS ? '4px' : '6px',
-              marginLeft: '0.55em' // Offset for the last letter's tracking
-            }}
-          >
-            Innovations
-          </span>
-          
-          {/* Main Brand Name */}
-          <span 
-            className={`font-black uppercase tracking-[0.18em] text-slate-900 leading-none transition-all duration-300 group-hover:text-emerald-600 ${
-              isXS ? 'text-[9px] mt-1' : 
-              size === 'small' ? 'text-[13px] mt-2' : 
-              isMedium ? 'text-[18px] mt-3' : 
-              'text-[26px] mt-5'
+            className={`font-black uppercase tracking-[0.15em] text-slate-900 leading-none transition-all duration-300 group-hover:text-emerald-600 ${
+              isXS ? 'text-[8px] mt-0.5' : 
+              size === 'small' ? 'text-[12px] mt-1' : 
+              isMedium ? 'text-[16px] mt-2' : 
+              'text-[24px] mt-4'
             }`}
           >
             Grocesphere
           </span>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

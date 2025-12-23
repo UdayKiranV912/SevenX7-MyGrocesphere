@@ -185,8 +185,7 @@ const AppContent: React.FC = () => {
     if (isLoading) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none">Locating...</span>
-           <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mt-1">Grocesphere</span>
+           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase">Locating...</span>
         </div>
       );
     }
@@ -194,8 +193,7 @@ const AppContent: React.FC = () => {
     if (!isLoading && availableStores.length === 0) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none uppercase">Coming Soon</span>
-           <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mt-1">Grocesphere</span>
+           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase">Coming Soon</span>
         </div>
       );
     }
@@ -203,8 +201,8 @@ const AppContent: React.FC = () => {
     if (activeStore) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[7px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-0.5">Shopping At</span>
-           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[140px]">
+           <span className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-0.5">Shopping At</span>
+           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[140px]">
               {activeStore.name}
            </span>
         </div>
@@ -213,8 +211,7 @@ const AppContent: React.FC = () => {
 
     return (
       <div className="flex flex-col items-center animate-fade-in">
-         <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none">Grocesphere</span>
-         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mt-1">{user.neighborhood || 'Finding Marts'}</span>
+         <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase truncate max-w-[160px]">{user.neighborhood || 'Finding Marts'}</span>
       </div>
     );
   };
@@ -224,16 +221,16 @@ const AppContent: React.FC = () => {
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
       {!showPaymentGateway && (
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3 shadow-sm shrink-0 safe-top">
-            <div className="max-w-md mx-auto flex items-center justify-between">
-                <div className="flex-shrink-0 flex justify-start items-center min-w-[80px]">
-                    <SevenX7Logo size="xs" />
+        <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-1.5 shadow-sm shrink-0 safe-top h-14 flex items-center">
+            <div className="max-w-md mx-auto flex items-center justify-between w-full">
+                <div className="flex-shrink-0 flex justify-start items-center min-w-[70px]">
+                    <SevenX7Logo size="xs" hideBrandName={true} />
                 </div>
-                <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform px-2" onClick={detectLocation}>
+                <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform px-2 overflow-hidden" onClick={detectLocation}>
                     {renderHeaderCenter()}
                 </button>
                 <div className="flex-shrink-0 flex justify-end min-w-[40px]">
-                    <button onClick={() => navigateTo('PROFILE')} className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg transition-transform active:scale-90 ring-2 ring-white">
+                    <button onClick={() => navigateTo('PROFILE')} className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white text-[9px] font-black uppercase shadow-lg transition-transform active:scale-90 ring-2 ring-white">
                         {user.name?.charAt(0) || 'U'}
                     </button>
                 </div>
