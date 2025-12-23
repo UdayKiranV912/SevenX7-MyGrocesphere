@@ -18,16 +18,18 @@ interface PaymentGatewayProps {
   orderMode?: 'DELIVERY' | 'PICKUP';
 }
 
+// THE FIXED ADMIN UPI ID FOR ALL TRANSACTIONS
 const ADMIN_UPI_ID = 'sevenx7.admin@okaxis';
 
 export const PaymentGateway: React.FC<PaymentGatewayProps> = ({ 
-  amount, onSuccess, onCancel, isDemo, splits, savedCards = [], onSavePaymentMethod, storeName = 'Store', orderMode
+  amount, onSuccess, onCancel, isDemo, savedCards = [], storeName = 'Store', orderMode
 }) => {
   const [step, setStep] = useState<'CONNECTING' | 'SELECT' | 'PROCESSING' | 'WAITING_CONFIRMATION' | 'SUCCESS' | 'FAILURE'>('CONNECTING');
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   
   const [upiId, setUpiId] = useState('');
   const [selectedUpiApp, setSelectedUpiApp] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successCalledRef = useRef(false);
@@ -49,10 +51,10 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
   const getPaymentMethodString = () => {
       if (selectedMethod === 'pay_at_store') return `POP: Pickup and Pay (Direct Store)`;
-      if (!isDemo && selectedUpiApp) return `UPI (${selectedUpiApp})`;
-      if (selectedMethod === 'upi_new') return `UPI (${upiId || 'New'})`;
+      if (selectedUpiApp) return `UPI (${selectedUpiApp} to Admin)`;
+      if (selectedMethod === 'upi_manual') return `Direct UPI Transfer (Manual)`;
       const saved = savedCards?.find(c => c.id === selectedMethod);
-      return saved ? `UPI (${saved.upiId})` : 'UPI Transfer';
+      return saved ? `UPI (${saved.upiId})` : 'UPI Transfer to Admin';
   };
 
   const triggerSuccess = () => {
@@ -72,13 +74,15 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
   const handleDemoPay = () => {
     setStep('PROCESSING');
     timerRef.current = setTimeout(() => {
-        if (Math.random() < 0.1) {
-            setStep('FAILURE');
-            return;
-        }
         setStep('SUCCESS');
         timerRef.current = setTimeout(triggerSuccess, 2000);
     }, 2000);
+  };
+
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(ADMIN_UPI_ID);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleRealTimeUpiSelect = (appName: string) => {
@@ -86,16 +90,16 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       setStep('PROCESSING');
       
       const pn = encodeURIComponent("SevenX7 Admin");
-      const tn = encodeURIComponent(`Order - ${storeName}`);
+      const tn = encodeURIComponent(`Grocesphere: ${storeName}`);
       const tr = `ORD${Date.now()}`;
       const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=${pn}&am=${amount.toFixed(2)}&cu=INR&tn=${tn}&tr=${tr}`;
       
       timerRef.current = setTimeout(() => {
-          if (!isDemo) window.location.href = upiUrl;
+          // In real environment, attempt deep link on mobile
+          if (!isDemo && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+              window.location.href = upiUrl;
+          }
           setStep('WAITING_CONFIRMATION');
-          timerRef.current = setTimeout(() => {
-              setStep('SUCCESS');
-          }, 6000); 
       }, 1500);
   };
 
@@ -112,18 +116,40 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
               <div className="w-20 h-20 bg-slate-900 text-white rounded-[2rem] flex items-center justify-center text-4xl mx-auto mb-6 shadow-xl">📱</div>
               <h3 className="text-xl font-black text-slate-900 mb-2">Processing</h3>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                  Finalizing secure transaction details
+                  Initializing secure transaction...
               </p>
           </div>
       );
 
       if (step === 'WAITING_CONFIRMATION') return (
-          <div className="text-center p-8 bg-white rounded-[2.5rem] shadow-2xl animate-scale-in max-w-xs mx-auto">
-              <div className="w-20 h-20 bg-yellow-50 text-yellow-600 rounded-[2rem] flex items-center justify-center text-4xl mx-auto mb-6 border-4 border-yellow-100 animate-pulse">⏳</div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">Awaiting Approval</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                  Please confirm the payment on your device to proceed.
-              </p>
+          <div className="text-center p-10 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-6">
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2rem] flex items-center justify-center text-4xl mx-auto mb-6 border-4 border-emerald-100 animate-pulse">⏳</div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">App Confirmation</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+                    Confirm the ₹{amount} payment in your UPI app.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Paying to Admin</p>
+                <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-slate-900 font-mono">{ADMIN_UPI_ID}</span>
+                    <button onClick={handleCopyUpi} className="text-[9px] font-black text-emerald-600 uppercase">
+                        {copied ? 'Copied' : 'Copy'}
+                    </button>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4">
+                <button 
+                    onClick={() => setStep('SUCCESS')}
+                    className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+                >
+                    I have paid
+                </button>
+                <button onClick={() => setStep('SELECT')} className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Back to Methods</button>
+              </div>
           </div>
       );
 
@@ -132,24 +158,13 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
               <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8 animate-logo-x shadow-2xl">
                   <svg className="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
               </div>
-              <h2 className="text-3xl font-black mb-3">{selectedMethod === 'pay_at_store' ? 'Order Finalized' : 'Payment Accepted'}</h2>
+              <h2 className="text-3xl font-black mb-3">{selectedMethod === 'pay_at_store' ? 'Order Placed' : 'Payment Sent'}</h2>
               <p className="text-emerald-100 font-bold uppercase tracking-widest text-[10px] mb-12 leading-relaxed">
                   {selectedMethod === 'pay_at_store' 
-                    ? 'Visit mart for collection & direct payment' 
-                    : 'Funds successfully received by platform admin'}
+                    ? 'Visit mart for collection' 
+                    : 'Amount sent to SevenX7 Admin for processing.'}
               </p>
               <button onClick={triggerSuccess} className="w-full max-w-xs bg-white text-emerald-700 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Continue</button>
-          </div>
-      );
-
-      if (step === 'FAILURE') return (
-          <div className="fixed inset-0 z-[200] bg-red-600 flex flex-col items-center justify-center text-white animate-fade-in p-8 text-center">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8 shadow-2xl">
-                  <span className="text-5xl">❌</span>
-              </div>
-              <h2 className="text-3xl font-black mb-3">Transaction Failed</h2>
-              <p className="text-red-100 font-bold uppercase tracking-widest text-[10px] mb-12 leading-relaxed">Please try an alternative payment method.</p>
-              <button onClick={() => setStep('SELECT')} className="w-full max-w-xs bg-white text-red-700 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Retry</button>
           </div>
       );
 
@@ -157,46 +172,63 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
           <div className="flex flex-col h-full animate-fade-in">
               <div className="bg-white p-6 pb-10 border-b border-slate-100 flex justify-between items-end shrink-0">
                   <div className="space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Secure Checkout</p>
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{orderMode === 'PICKUP' ? 'Self Collection' : 'Fast Delivery'}</h2>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Direct Payment</p>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{orderMode === 'PICKUP' ? 'Store Pickup' : 'Express Delivery'}</h2>
                       <div className="flex items-center gap-2 mt-2">
                         <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">Mart: {storeName}</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">Admin: SevenX7 Innovations</span>
                       </div>
                   </div>
                   <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Due</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Payable</p>
                       <span className="text-3xl font-black tracking-tighter tabular-nums text-slate-900">₹{amount}</span>
                   </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-40">
+              <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-40 hide-scrollbar">
+                  {/* ADMIN VPA DISPLAY CARD */}
+                  <div className="bg-slate-900 text-white p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl group-hover:bg-emerald-500/30 transition-all"></div>
+                      <div className="relative z-10">
+                          <p className="text-[8px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-3">Recipient: SevenX7 Admin</p>
+                          <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fixed Admin VPA</span>
+                              <div className="flex items-center justify-between">
+                                  <h4 className="text-lg font-black tracking-tight">{ADMIN_UPI_ID}</h4>
+                                  <button onClick={handleCopyUpi} className="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all">
+                                      {copied ? 'Copied' : 'Copy ID'}
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
                   {orderMode === 'PICKUP' && (
                     <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest ml-1">Direct Settlement</h3>
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Local Pickup Option</h3>
                         <button 
                             onClick={() => { setSelectedMethod('pay_at_store'); handlePayAtStore(); }}
-                            className="w-full p-5 bg-emerald-600 text-white rounded-2xl border-2 border-emerald-500 flex items-center justify-between shadow-lg transition-all active:scale-[0.98] group"
+                            className="w-full p-5 bg-white rounded-2xl border-2 border-slate-100 flex items-center justify-between shadow-sm transition-all active:scale-[0.98] group hover:border-emerald-500"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🤝</div>
+                                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl">🤝</div>
                                 <div className="text-left">
-                                    <span className="font-black text-sm uppercase tracking-tight block">POP / Pickup and Pay</span>
-                                    <span className="text-[8px] font-bold opacity-80 uppercase tracking-widest">Pay via Cash or Mart QR at Store</span>
+                                    <span className="font-black text-sm uppercase tracking-tight block text-slate-900">POP / Pickup and Pay</span>
+                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Pay Directly at Mart</span>
                                 </div>
                             </div>
-                            <span className="text-white/40">→</span>
+                            <span className="text-slate-300">→</span>
                         </button>
                     </div>
                   )}
 
                   <div className="space-y-3 pt-2">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Digital Payment</h3>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Direct App Transfer</h3>
                       {['Google Pay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
                           <button 
                             key={app} 
                             onClick={() => handleRealTimeUpiSelect(app)}
-                            className="w-full p-5 bg-white rounded-2xl border-2 border-slate-100 flex items-center justify-between hover:border-slate-900 transition-all active:scale-[0.98] group"
+                            className="w-full p-5 bg-white rounded-2xl border-2 border-slate-100 flex items-center justify-between hover:border-slate-900 transition-all active:scale-[0.98] group shadow-sm"
                           >
                               <div className="flex items-center gap-4">
                                   <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">📱</div>
@@ -209,26 +241,18 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
                   {isDemo && (
                       <div className="space-y-3 pt-4 border-t border-slate-100">
-                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Simulation Mode</h3>
-                          <div className={`p-5 rounded-2xl border-2 transition-all ${selectedMethod === 'upi_new' ? 'bg-emerald-50 border-emerald-500 shadow-lg' : 'bg-white border-slate-100'}`} onClick={() => setSelectedMethod('upi_new')}>
-                              <input 
-                                  placeholder="Enter UPI ID (e.g. user@okaxis)"
-                                  className="w-full bg-transparent text-sm font-black outline-none placeholder:text-slate-300"
-                                  value={upiId}
-                                  onChange={e => setUpiId(e.target.value)}
-                              />
-                          </div>
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sandbox Simulation</h3>
                           <button 
                             onClick={handleDemoPay}
-                            className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[11px] shadow-float active:scale-95 transition-all"
+                            className="w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-widest text-[11px] shadow-2xl active:scale-95 transition-all"
                           >
-                              Confirm Sandbox Payment
+                              Confirm Demo Payment
                           </button>
                       </div>
                   )}
               </div>
               
-              <button onClick={onCancel} className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Cancel Payment</button>
+              <button onClick={onCancel} className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Cancel Checkout</button>
           </div>
       );
   };
