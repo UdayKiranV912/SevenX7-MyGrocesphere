@@ -84,29 +84,30 @@ export const ShopPage: React.FC = () => {
       </div>
 
       {/* Interactive Map Context */}
-      <div className="relative h-[180px] mb-4 overflow-hidden border-b border-slate-100 isolate">
+      <div className="relative h-[220px] mb-4 overflow-hidden border-b border-slate-100 isolate">
         <MapVisualizer 
           stores={availableStores}
           userLat={user.location?.lat || null}
           userLng={user.location?.lng || null}
+          userAccuracy={user.accuracy}
           selectedStore={activeStore}
           onSelectStore={setActiveStore}
           mode="DELIVERY"
           className="h-full"
           onRequestLocation={detectLocation}
         />
-        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-50 to-transparent pointer-events-none z-10" />
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-slate-50 to-transparent pointer-events-none z-10" />
         
         {activeStore && (
             <div className="absolute top-3 left-3 z-[40] animate-slide-up">
-              <div className="bg-white/95 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-float border border-white/50 flex items-center gap-2">
-                  <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] shadow-sm ${
+              <div className="bg-white/95 backdrop-blur-xl px-4 py-2 rounded-2xl shadow-float border border-white/50 flex items-center gap-2.5">
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] shadow-sm ${
                       activeStore.type === 'produce' ? 'bg-emerald-500 text-white' : 
                       activeStore.type === 'dairy' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
                   }`}>
                       {activeStore.type === 'produce' ? '🥦' : activeStore.type === 'dairy' ? '🥛' : '🏪'}
                   </div>
-                  <span className="text-[8px] font-black text-slate-900 leading-tight truncate max-w-[120px] uppercase tracking-wider">Grocesphere</span>
+                  <span className="text-[9px] font-black text-slate-900 leading-tight truncate max-w-[140px] uppercase tracking-widest">{activeStore.name}</span>
               </div>
             </div>
         )}

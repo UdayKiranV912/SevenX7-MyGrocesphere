@@ -19,6 +19,7 @@ const AppContent: React.FC = () => {
     orderMode, setOrderMode,
     addToCart, updateQuantity,
     detectLocation,
+    isLoading,
     toast, hideToast, showToast,
     currentView, setCurrentView,
     orders, addOrder, updateOrderStatus,
@@ -64,16 +65,19 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (user.isAuthenticated && navigator.geolocation) {
         detectLocation();
-        // Maximum precision real-time location watching
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
-                const { latitude, longitude } = position.coords;
-                setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude } }));
+                const { latitude, longitude, accuracy } = position.coords;
+                setUser(prev => ({ 
+                  ...prev, 
+                  location: { lat: latitude, lng: longitude },
+                  accuracy: accuracy 
+                }));
             },
             (err) => console.warn("Watch GPS error:", err),
             { 
               enableHighAccuracy: true, 
-              maximumAge: 0, // Force fresh location, no caching
+              maximumAge: 0, 
               timeout: 10000 
             }
         );
@@ -148,8 +152,7 @@ const AppContent: React.FC = () => {
       id: 'demo-user',
       name: 'Demo User',
       phone: '9999999999',
-      location: { lat: 12.9784, lng: 77.6408 }, 
-      address: 'Indiranagar, Bengaluru',         
+      location: null, 
       savedCards: []
     });
     window.history.replaceState({ view: 'SHOP' }, '');
@@ -204,27 +207,64 @@ const AppContent: React.FC = () => {
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const canShowNav = !showPaymentGateway;
 
+  // Header Context Display
+  const renderHeaderCenter = () => {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center animate-fade-in">
+           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none">Locating...</span>
+           <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mt-1">Grocesphere</span>
+        </div>
+      );
+    }
+
+    if (availableStores.length === 0) {
+      return (
+        <div className="flex flex-col items-center animate-fade-in">
+           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none uppercase">Coming Soon</span>
+           <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mt-1">Grocesphere</span>
+        </div>
+      );
+    }
+
+    if (activeStore) {
+      return (
+        <div className="flex flex-col items-center animate-fade-in">
+           <span className="text-[7px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-0.5">Shopping At</span>
+           <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[180px]">
+              {activeStore.name}
+           </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center animate-fade-in">
+         <span className="text-[14px] font-black text-slate-900 tracking-tight leading-none">Grocesphere</span>
+         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mt-1">{user.neighborhood || 'Finding Marts'}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 overflow-hidden flex flex-col selection:bg-emerald-100 relative">
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
       {!showPaymentGateway && (
         <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-5 py-3 shadow-sm shrink-0 safe-top">
-            <div className="max-w-md mx-auto grid grid-cols-3 items-center">
-                <div className="justify-self-start"><SevenX7Logo size="xs" /></div>
-                <div className="justify-self-center text-center">
-                    <button className="flex flex-col items-center group active:scale-95 transition-transform" onClick={detectLocation}>
-                        {/* Branded "Grocesphere" header instead of activeStore name */}
-                        <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">
-                            Grocesphere
-                        </span>
-                        <div className="flex items-center gap-1 mt-1">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-tight">{(user as any).neighborhood || 'Locating...'}</span>
-                        </div>
-                    </button>
+            <div className="max-w-md mx-auto flex items-center justify-between">
+                <div className="w-12 flex justify-start">
+                    <SevenX7Logo size="xs" hideBrandName />
                 </div>
-                <div className="justify-self-end">
+                
+                <button 
+                    className="flex-1 flex flex-col items-center group active:scale-95 transition-transform" 
+                    onClick={detectLocation}
+                >
+                    {renderHeaderCenter()}
+                </button>
+
+                <div className="w-12 flex justify-end">
                     <button onClick={() => navigateTo('PROFILE')} className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg transition-transform active:scale-90 ring-2 ring-white">
                         {user.name?.charAt(0) || 'U'}
                     </button>

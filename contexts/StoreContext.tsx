@@ -72,11 +72,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const nearestStore = useMemo(() => {
     if (availableStores.length === 0) return null;
     if (!user.location) return availableStores[0];
-    return availableStores.reduce((prev, curr) => {
-        const dPrev = Math.sqrt(Math.pow(prev.lat - user.location!.lat, 2) + Math.pow(prev.lng - user.location!.lng, 2));
-        const dCurr = Math.sqrt(Math.pow(curr.lat - user.location!.lat, 2) + Math.pow(curr.lng - user.location!.lng, 2));
-        return dCurr < dPrev ? curr : prev;
+    
+    // Sort by distance and pick the closest
+    const sorted = [...availableStores].sort((a, b) => {
+        const dA = Math.sqrt(Math.pow(a.lat - user.location!.lat, 2) + Math.pow(a.lng - user.location!.lng, 2));
+        const dB = Math.sqrt(Math.pow(b.lat - user.location!.lat, 2) + Math.pow(b.lng - user.location!.lng, 2));
+        return dA - dB;
     });
+    return sorted[0];
   }, [user.location, availableStores]);
 
   const activeStore = manualStore || nearestStore;
@@ -94,8 +97,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
         const stores = await fetchRealStores(lat, lng);
         if (user.id === 'demo-user') {
-            setAvailableStores(stores.length > 0 ? [...stores, ...MOCK_STORES] : MOCK_STORES);
+            // For Demo: Show mock Bengaluru data as the primary simulated set
+            setAvailableStores(MOCK_STORES);
         } else {
+            // Real Users: strictly verified real-time marts only
             setAvailableStores(stores);
         }
     } catch (e) {
@@ -114,37 +119,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const detectLocation = useCallback(async () => {
     if (!navigator.geolocation) {
-      showToast("GPS not supported");
+      showToast("GPS not supported on this device");
       return;
     }
     setIsLoading(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude, accuracy } = pos.coords;
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
-          const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || 'My Area';
+          const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || 'Detected Area';
           setUser(prev => ({ 
             ...prev, 
             location: { lat: latitude, lng: longitude },
+            accuracy: accuracy,
             address: data.display_name || `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`,
             neighborhood: neighborhood
           }));
         } catch (e) {
-          setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude } }));
+          setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude }, accuracy }));
         } finally {
           setIsLoading(false);
         }
       },
       () => {
         setIsLoading(false);
-        showToast("Location denied");
+        showToast("GPS access denied. Using network location.");
       },
       { 
         enableHighAccuracy: true, 
-        timeout: 10000, 
-        maximumAge: 0 // Disable cache to improve pinpoint accuracy
+        timeout: 8000, 
+        maximumAge: 0 
       }
     );
   }, [showToast]);

@@ -7,6 +7,7 @@ interface MapVisualizerProps {
   stores: Store[];
   userLat: number | null;
   userLng: number | null;
+  userAccuracy?: number;
   selectedStore: Store | null;
   onSelectStore: (store: Store) => void;
   className?: string;
@@ -21,6 +22,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   stores, 
   userLat, 
   userLng, 
+  userAccuracy,
   selectedStore, 
   onSelectStore, 
   className = "h-48",
@@ -34,11 +36,14 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const userMarkerRef = useRef<any>(null);
+  const accuracyCircleRef = useRef<any>(null);
   const driverMarkerRef = useRef<any>(null);
   const routeLineRef = useRef<any>(null);
-  const [isLocating, setIsLocating] = useState(false);
   
-  const [hasInitialFlyTo, setHasInitialFlyTo] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [followUser, setFollowUser] = useState(true);
+  const [mapType, setMapType] = useState<'STREET' | 'DARK'>('STREET');
+  
   const prevBoundsHash = useRef<string>("");
   const prevRouteKey = useRef<string>("");
   const [routePath, setRoutePath] = useState<[number, number][]>([]);
@@ -70,69 +75,21 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     `;
   };
 
-  const mapCenterLat = driverLocation ? driverLocation.lat : (userLat || (selectedStore ? selectedStore.lat : 12.9716));
-  const mapCenterLng = driverLocation ? driverLocation.lng : (userLng || (selectedStore ? selectedStore.lng : 77.5946));
-
   const handleRecenter = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsLocating(true);
-    setHasInitialFlyTo(false);
+    setFollowUser(true);
     if (onRequestLocation) onRequestLocation();
-    setTimeout(() => setIsLocating(false), 5000);
-  };
-
-  const openGoogleMaps = () => {
-    if (selectedStore) {
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedStore.lat},${selectedStore.lng}`;
-        window.open(url, '_blank');
+    if (userLat && userLng && mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo([userLat, userLng], 18, { animate: true, duration: 1.2 });
     }
+    setTimeout(() => setIsLocating(false), 2000);
   };
 
-  useEffect(() => {
-      if (userLat && userLng && mapInstanceRef.current && !driverLocation) {
-          if (!hasInitialFlyTo || isLocating) {
-              mapInstanceRef.current.flyTo([userLat, userLng], 15, { animate: true, duration: 1.5 });
-              setHasInitialFlyTo(true);
-              setIsLocating(false);
-          }
-      }
-  }, [userLat, userLng, isLocating, hasInitialFlyTo, driverLocation]);
-
-  useEffect(() => {
-    let isActive = true;
-    const fetchPath = async () => {
-        if (showRoute && userLat && userLng) {
-            const startNode = driverLocation || selectedStore;
-            if (startNode) {
-                const startStr = `${startNode.lat.toFixed(5)},${startNode.lng.toFixed(5)}`;
-                const endStr = `${userLat.toFixed(5)},${userLng.toFixed(5)}`;
-                const routeKey = `${startStr}->${endStr}`;
-                if (prevRouteKey.current === routeKey && routePath.length > 0) return;
-                try {
-                    const points = await getRoute(startNode.lat, startNode.lng, userLat, userLng);
-                    if (isActive) {
-                        if (points.length > 0) {
-                            setRoutePath(points);
-                            prevRouteKey.current = routeKey;
-                        } else {
-                            setRoutePath([[startNode.lat, startNode.lng], [userLat, userLng]]);
-                        }
-                    }
-                } catch (e) {
-                    if (isActive) setRoutePath([[startNode.lat, startNode.lng], [userLat, userLng]]);
-                }
-            }
-        } else {
-            if (isActive) {
-                setRoutePath([]);
-                prevBoundsHash.current = "";
-                prevRouteKey.current = "";
-            }
-        }
-    };
-    fetchPath();
-    return () => { isActive = false; };
-  }, [userLat, userLng, selectedStore?.id, driverLocation?.lat, driverLocation?.lng, showRoute]);
+  const toggleMapType = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setMapType(prev => prev === 'STREET' ? 'DARK' : 'STREET');
+  };
 
   useEffect(() => {
     const L = (window as any).L;
@@ -140,28 +97,37 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
 
     if (!mapInstanceRef.current) {
       mapInstanceRef.current = L.map(mapContainerRef.current, {
-        center: [mapCenterLat, mapCenterLng],
-        zoom: 13,
+        center: [userLat || 12.9716, userLng || 77.5946],
+        zoom: 16,
         zoomControl: false,
         attributionControl: false,
-        layers: [
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                maxZoom: 20,
-                attribution: '&copy; OpenStreetMap'
-            })
-        ]
+        zoomSnap: 0.1,
+        zoomDelta: 1
       });
-      L.control.attribution({ prefix: false }).addTo(mapInstanceRef.current);
+
+      mapInstanceRef.current.on('movestart', (e: any) => {
+          if (!isLocating && e.hard === undefined) {
+             setFollowUser(false);
+          }
+      });
     }
 
-    if (userLat && userLng && userLat !== 0 && userLng !== 0) {
+    const streetTiles = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const darkTiles = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    
+    if (mapInstanceRef.current._tileLayer) mapInstanceRef.current.removeLayer(mapInstanceRef.current._tileLayer);
+    mapInstanceRef.current._tileLayer = L.tileLayer(mapType === 'STREET' ? streetTiles : darkTiles, {
+        maxZoom: 21
+    }).addTo(mapInstanceRef.current);
+
+    if (userLat && userLng) {
       if (!userMarkerRef.current) {
         const userIcon = L.divIcon({
           className: 'user-marker-container',
           html: `
             <div class="relative flex items-center justify-center w-8 h-8">
-               <div class="absolute w-full h-full bg-blue-500/30 rounded-full animate-ping"></div>
-               <div class="relative w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div>
+               <div class="absolute w-full h-full bg-emerald-500/30 rounded-full animate-ping"></div>
+               <div class="relative w-4 h-4 bg-emerald-600 rounded-full border-2 border-white shadow-lg"></div>
             </div>
           `,
           iconSize: [32, 32],
@@ -171,6 +137,26 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       } else {
         userMarkerRef.current.setLatLng([userLat, userLng]);
       }
+
+      if (userAccuracy) {
+          if (!accuracyCircleRef.current) {
+            accuracyCircleRef.current = L.circle([userLat, userLng], {
+                radius: userAccuracy,
+                color: '#10b981',
+                fillColor: '#10b981',
+                fillOpacity: 0.12,
+                weight: 1.5,
+                interactive: false
+            }).addTo(mapInstanceRef.current);
+          } else {
+            accuracyCircleRef.current.setLatLng([userLat, userLng]);
+            accuracyCircleRef.current.setRadius(userAccuracy);
+          }
+      }
+
+      if (followUser && !showRoute) {
+          mapInstanceRef.current.panTo([userLat, userLng], { animate: true, duration: 0.6 });
+      }
     }
 
     if (driverLocation) {
@@ -179,17 +165,17 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
                  className: 'driver-marker-container',
                  html: `
                     <div class="relative flex flex-col items-center justify-center transition-all duration-300">
-                       <div class="absolute -top-8 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg whitespace-nowrap z-[60] animate-bounce-soft">Your Order</div>
-                       <div class="relative w-12 h-12 flex items-center justify-center z-50">
-                          <div class="absolute inset-0 bg-brand-DEFAULT rounded-full opacity-20 animate-ping"></div>
-                          <div class="relative w-10 h-10 bg-white rounded-full border-[3px] border-brand-DEFAULT shadow-xl flex items-center justify-center">
-                              <span class="text-xl transform -scale-x-100">🛵</span>
+                       <div class="absolute -top-10 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap z-[60] border border-white/10 uppercase tracking-widest">Courier 🛵</div>
+                       <div class="relative w-14 h-14 flex items-center justify-center z-50">
+                          <div class="absolute inset-0 bg-emerald-500 rounded-full opacity-25 animate-ping"></div>
+                          <div class="relative w-11 h-11 bg-white rounded-full border-[3px] border-emerald-500 shadow-2xl flex items-center justify-center transition-transform hover:scale-110">
+                              <span class="text-2xl transform -scale-x-100 filter drop-shadow-sm">🛵</span>
                           </div>
                        </div>
                     </div>
                  `,
-                 iconSize: [48, 48],
-                 iconAnchor: [24, 24]
+                 iconSize: [56, 56],
+                 iconAnchor: [28, 28]
              });
              driverMarkerRef.current = L.marker([driverLocation.lat, driverLocation.lng], { icon: driverIcon, zIndexOffset: 10000 }).addTo(mapInstanceRef.current);
         } else {
@@ -214,14 +200,12 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
 
       const marker = L.marker([store.lat, store.lng], { icon, zIndexOffset: isSelected ? 900 : 100 })
         .addTo(mapInstanceRef.current);
-        // Popup removed as requested: Redundant store view removed.
       
       marker.on('click', () => {
         onSelectStore(store);
         prevBoundsHash.current = "";
-        if (!userLat || !userLng) {
-             mapInstanceRef.current.flyTo([store.lat, store.lng], 15, { animate: true, duration: 1 });
-        }
+        setFollowUser(false);
+        mapInstanceRef.current.flyTo([store.lat, store.lng], 17, { animate: true, duration: 1 });
       });
       markersRef.current.push(marker);
     });
@@ -232,60 +216,90 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     }
 
     if (routePath.length > 0) {
-       const isRealRoute = routePath.length > 2;
        routeLineRef.current = L.polyline(routePath, {
-         color: '#3b82f6',
-         weight: 5,
-         opacity: 0.8,
-         dashArray: isRealRoute ? null : '10, 10',
+         color: mapType === 'STREET' ? '#10b981' : '#34d399',
+         weight: 6,
+         opacity: 0.9,
          lineCap: 'round',
          lineJoin: 'round'
        }).addTo(mapInstanceRef.current);
 
-       const boundsHash = `${routePath[0][0]}-${routePath[0][1]}-${routePath[routePath.length-1][0]}-${routePath[routePath.length-1][1]}`;
+       const boundsHash = `route-${routePath[0][0]}-${routePath[routePath.length-1][0]}`;
        if (prevBoundsHash.current !== boundsHash) {
            const bounds = L.latLngBounds(routePath);
-           mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true });
+           mapInstanceRef.current.fitBounds(bounds, { padding: [60, 60], maxZoom: 17, animate: true });
            prevBoundsHash.current = boundsHash;
+           setFollowUser(false);
        }
-    } else if (selectedStore && !showRoute) {
-        const storeHash = `store-${selectedStore.id}`;
-        if (prevBoundsHash.current !== storeHash) {
-            mapInstanceRef.current.flyTo([selectedStore.lat, selectedStore.lng], 15, { animate: true });
-            prevBoundsHash.current = storeHash;
+    } else if (stores.length > 0 && userLat && userLng && !showRoute) {
+        const boundsHash = `stores-${stores.length}-${userLat}-${userLng}`;
+        if (prevBoundsHash.current !== boundsHash) {
+            const allPoints = stores.map(s => L.latLng(s.lat, s.lng));
+            allPoints.push(L.latLng(userLat, userLng));
+            const bounds = L.latLngBounds(allPoints);
+            mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            prevBoundsHash.current = boundsHash;
         }
     }
 
-  }, [stores, userLat, userLng, selectedStore, showRoute, mode, driverLocation, routePath]);
+  }, [stores, userLat, userLng, userAccuracy, selectedStore, showRoute, mode, driverLocation, routePath, mapType, followUser, isLocating]);
+
+  useEffect(() => {
+    let isActive = true;
+    const fetchPath = async () => {
+        if (showRoute && userLat && userLng) {
+            const startNode = driverLocation || selectedStore;
+            if (startNode) {
+                try {
+                    const points = await getRoute(startNode.lat, startNode.lng, userLat, userLng);
+                    if (isActive) {
+                        if (points.length > 0) {
+                            setRoutePath(points);
+                        } else {
+                            setRoutePath([[startNode.lat, startNode.lng], [userLat, userLng]]);
+                        }
+                    }
+                } catch (e) {
+                    if (isActive) setRoutePath([[startNode.lat, startNode.lng], [userLat, userLng]]);
+                }
+            }
+        } else {
+            if (isActive) setRoutePath([]);
+        }
+    };
+    fetchPath();
+    return () => { isActive = false; };
+  }, [userLat, userLng, selectedStore?.id, driverLocation?.lat, driverLocation?.lng, showRoute]);
 
   return (
     <div className={`relative w-full bg-slate-100 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
-      <div ref={mapContainerRef} className="w-full h-full z-0 mix-blend-multiply opacity-90" />
-      <button 
-        onClick={handleRecenter}
-        className="absolute bottom-4 right-4 z-[500] w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-90 border border-slate-100"
-      >
-        {isLocating ? (
-           <div className="w-5 h-5 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
-        ) : (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-             <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-           </svg>
-        )}
-      </button>
+      <div ref={mapContainerRef} className="w-full h-full z-0 transition-opacity duration-700" />
+      
+      <div className="absolute bottom-4 left-4 right-4 z-[500] flex items-center justify-between pointer-events-none">
+          <div className="flex gap-2 pointer-events-auto">
+              <button 
+                onClick={toggleMapType}
+                className="w-11 h-11 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center text-slate-800 border border-white/50 transition-all active:scale-90"
+              >
+                  {mapType === 'STREET' ? '🌙' : '☀️'}
+              </button>
+          </div>
 
-      {enableExternalNavigation && selectedStore && mode === 'PICKUP' && (
-         <button 
-           onClick={openGoogleMaps}
-           className="absolute top-4 right-4 z-[500] bg-slate-900 text-white px-4 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2 hover:scale-105 transition-transform"
-         >
-           <span>Navigate</span>
-           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-           </svg>
-         </button>
-      )}
-      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/5 to-transparent pointer-events-none z-[400]" />
+          <button 
+            onClick={handleRecenter}
+            className={`w-11 h-11 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center transition-all active:scale-90 border pointer-events-auto ${
+                followUser ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white/90 text-slate-800 border-white/50'
+            }`}
+          >
+            {isLocating ? (
+               <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                 <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+               </svg>
+            )}
+          </button>
+      </div>
     </div>
   );
 };

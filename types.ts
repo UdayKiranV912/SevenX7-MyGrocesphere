@@ -83,6 +83,7 @@ export interface UserState {
   address?: string;
   neighborhood?: string;
   location: { lat: number; lng: number } | null;
+  accuracy?: number; // Accuracy in meters
   savedCards?: SavedCard[];
   role?: 'customer' | 'store_owner' | 'delivery_partner' | 'admin';
   verificationStatus?: 'pending' | 'verified' | 'rejected';

@@ -13,7 +13,7 @@ interface MyOrdersProps {
 }
 
 export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) => {
-  const { orders, driverLocations } = useStore();
+  const { orders, driverLocations, user } = useStore();
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   
   // Modal States
@@ -116,6 +116,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                                     selectedStore={mapStore}
                                     userLat={userLocation?.lat || 0}
                                     userLng={userLocation?.lng || 0}
+                                    userAccuracy={user.accuracy}
                                     mode={order.mode}
                                     onSelectStore={() => {}}
                                     showRoute={true}
@@ -125,12 +126,11 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                                 />
                                 {isLive && (
                                     <div className="absolute top-2 left-2 bg-slate-900 text-white px-2 py-1 rounded-lg text-[8px] font-black shadow-lg z-[1000] animate-pulse">
-                                        ● TRACKING DRIVER
+                                        ● TRACKING COURIER
                                     </div>
                                 )}
                             </div>
                             
-                            {/* Navigation Actions */}
                             <div className="grid grid-cols-1 gap-2 mt-3">
                                 {order.mode === 'PICKUP' ? (
                                     <button 
