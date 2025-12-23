@@ -84,12 +84,23 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     orders.forEach(async (order) => {
-      if (order.status === 'Pending' && order.paymentStatus === 'PAID') {
+      // Logic for finalizing orders from Pending to Preparing
+      if (order.status === 'Pending') {
+          // Both delivery and POP Pickup orders start here
           setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
       }
+
+      // Progression from Preparing
       if (order.status === 'Preparing') {
-          setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
+          if (order.mode === 'DELIVERY') {
+              setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
+          } else {
+              // Pickup orders go straight to 'Ready'
+              setTimeout(() => updateOrderStatus(order.id, 'Ready'), 6000);
+          }
       }
+
+      // Tracking Delivery simulation
       if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
           const targetLocation = user.location;
           if (!targetLocation || !order.storeLocation) return;
@@ -136,7 +147,7 @@ const AppContent: React.FC = () => {
       id: 'demo-user',
       name: 'Demo User',
       phone: '9999999999',
-      location: null, // Resolved via watchPosition
+      location: null,
       savedCards: []
     });
     window.history.replaceState({ view: 'SHOP' }, '');
@@ -151,13 +162,16 @@ const AppContent: React.FC = () => {
   const finalizeOrder = async (paymentMethodString: string) => {
     if (!pendingOrderDetails) return;
     const itemsTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    // POP orders start as UNPAID (PENDING) if it's "Pay at Store"
+    const isPop = paymentMethodString.includes('POP');
+    
     const order: Order = {
         id: 'ORD' + Math.random().toString(36).substr(2, 6).toUpperCase(),
         date: new Date().toISOString(),
         items: cart,
         total: itemsTotal + (pendingOrderDetails.splits?.deliveryFee || 0),
         status: 'Pending',
-        paymentStatus: 'PAID',
+        paymentStatus: isPop ? 'PENDING' : 'PAID',
         paymentMethod: paymentMethodString,
         mode: orderMode,
         deliveryType: pendingOrderDetails.deliveryType,
