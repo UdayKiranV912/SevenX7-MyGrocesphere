@@ -97,13 +97,13 @@ export const MOCK_STORES: Store[] = [
 
 export const MOCK_ADS: AdCampaign[] = [
   {
-    id: 'sevenx7-internal',
+    id: 'sevenx7-hq',
     partnerName: 'SevenX7',
     partnerSuffix: 'Innovations',
     description: 'Pioneering the next generation of hyper-local ecosystems. Building technologies that empower community commerce.',
     websiteUrl: 'https://www.sevenx7.com/',
-    displayUrl: 'www.sevenx7.com',
-    ctaText: 'Visit Website',
+    displayUrl: 'sevenx7.com',
+    ctaText: 'Visit Partner Website',
     themeColor: 'emerald',
     tag: 'Verified Partner',
     icon: '🚀'

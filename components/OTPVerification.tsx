@@ -58,7 +58,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                 });
           } else {
              setLoading(false);
-             setErrorMsg("Invalid OTP. Please contact Admin for the correct code.");
+             setErrorMsg("Invalid OTP. Please check with SevenX7 Admin.");
           }
       }, 1500);
   };
@@ -190,9 +190,9 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                                 🔐
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Verify Identity</h3>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Access Code</h3>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2 px-4 leading-relaxed">
-                                    A verification code has been generated. Contact admin for authorization.
+                                    Contact SevenX7 Admin to receive your manual verification code.
                                 </p>
                             </div>
                             
