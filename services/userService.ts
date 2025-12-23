@@ -1,32 +1,70 @@
 
 import { UserState } from '../types';
+import { supabase } from './supabase';
 
 export const registerUser = async (email: string, pass: string, name: string, phone: string) => {
-    // In a production app with Supabase, this would be an 'auth.signUp' call.
-    // For this environment, we simulate a successful DB write.
-    console.log("DB Write: Registering user", { email, name, phone });
-    return { id: 'user_' + Math.random().toString(36).substr(2, 9), email, name, phone };
+    // 1. Create the Auth User
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: {
+            data: {
+                full_name: name,
+                phone_number: phone,
+                role: 'customer'
+            }
+        }
+    });
+
+    if (error) throw error;
+
+    // 2. Ensure Profile exists in public.profiles (Backend trigger should handle this, but we force it for resilience)
+    if (data.user) {
+        const { error: profileError } = await supabase.from('profiles').upsert({
+            id: data.user.id,
+            full_name: name,
+            phone_number: phone,
+            email: email,
+            role: 'customer'
+        });
+        if (profileError) console.error("Profile sync error:", profileError);
+    }
+
+    return data.user;
 };
 
-export const loginUser = async (email: string, pass: string, providedName?: string, providedPhone?: string): Promise<UserState> => {
-    // If name/phone are provided (from a registration flow), use them.
-    // Otherwise, derive a name from the email for the session.
-    const nameFromEmail = email.split('@')[0];
-    const derivedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
-    
+export const loginUser = async (email: string, pass: string): Promise<UserState> => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pass
+    });
+
+    if (error) throw error;
+
+    // Fetch the extended profile data
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
     return {
         isAuthenticated: true,
-        id: 'user_' + Math.random().toString(36).substr(2, 9),
-        name: providedName || derivedName, 
-        phone: providedPhone || '9XXXXXXXX0',
+        id: data.user.id,
+        name: profile?.full_name || email.split('@')[0],
+        phone: profile?.phone_number || '',
         email: email,
-        location: null, 
-        address: '', 
+        location: null,
+        address: profile?.address || '',
         savedCards: []
     };
 };
 
 export const updateUserProfile = async (id: string, updates: any) => {
-    // Simulated profile update
+    const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', id);
+    if (error) throw error;
     return true;
 };
