@@ -126,7 +126,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                                 />
                                 {isLive && (
                                     <div className="absolute top-2 left-2 bg-slate-900 text-white px-2 py-1 rounded-lg text-[8px] font-black shadow-lg z-[1000] animate-pulse">
-                                        ● TRACKING COURIER
+                                        ● TRACKING DELIVERY PARTNER
                                     </div>
                                 )}
                             </div>

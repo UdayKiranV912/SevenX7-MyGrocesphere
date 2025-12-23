@@ -165,7 +165,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
                  className: 'driver-marker-container',
                  html: `
                     <div class="relative flex flex-col items-center justify-center transition-all duration-300">
-                       <div class="absolute -top-10 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap z-[60] border border-white/10 uppercase tracking-widest">Courier 🛵</div>
+                       <div class="absolute -top-10 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap z-[60] border border-white/10 uppercase tracking-widest">Delivery Partner 🛵</div>
                        <div class="relative w-14 h-14 flex items-center justify-center z-50">
                           <div class="absolute inset-0 bg-emerald-500 rounded-full opacity-25 animate-ping"></div>
                           <div class="relative w-11 h-11 bg-white rounded-full border-[3px] border-emerald-500 shadow-2xl flex items-center justify-center transition-transform hover:scale-110">
