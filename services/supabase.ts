@@ -1,10 +1,10 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-// Environment variables for Supabase connection
-const supabaseUrl = (process.env as any).SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = (process.env as any).SUPABASE_ANON_KEY || 'placeholder-key';
+// Connection details provided for the live Supabase project
+const supabaseUrl = (process.env as any).VITE_SUPABASE_URL || 'https://tvywzlolrjukfkukxjpr.supabase.co';
+const supabaseAnonKey = (process.env as any).VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY || 'sb_publishable_LdempZ18AsyBTVrBI8wkHw_E-sq5GQb';
 
-// Check if we are using the placeholder to provide better error feedback later
-export const isSupabaseConfigured = supabaseUrl !== 'https://placeholder.openstreetmap.org' && supabaseUrl !== 'https://placeholder.supabase.co';
+export const isSupabaseConfigured = !!supabaseUrl && !supabaseUrl.includes('placeholder');
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

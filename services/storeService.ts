@@ -1,11 +1,9 @@
-
 import { Store } from '../types';
 import { supabase } from './supabase';
 
 export const fetchVerifiedStores = async (lat: number, lng: number): Promise<Store[]> => {
-    // Queries verified and currently open stores
-    // Note: In production, we'd use a PostGIS spatial query for 'around:radius'.
-    // Here we fetch verified partners and will filter by distance client-side for simplicity.
+    // Queries verified partners strictly from the Supabase backend.
+    // This represents the "Real-Time" partner network of registered local marts.
     const { data: stores, error } = await supabase
         .from('stores')
         .select('*')
@@ -13,25 +11,27 @@ export const fetchVerifiedStores = async (lat: number, lng: number): Promise<Sto
         .eq('is_open', true);
 
     if (error) {
-        console.error("Fetch stores error:", error);
+        console.error("Partner sync failed:", error);
         return [];
     }
 
     if (!stores || stores.length === 0) return [];
 
+    // Map database structure to UI Store type
     return stores.map(s => ({
         id: s.id,
         name: s.name,
         address: s.address,
-        rating: 4.5,
+        rating: s.rating || 4.5,
         distance: 'Nearby',
         lat: parseFloat(s.lat) || 12.9716,
         lng: parseFloat(s.lng) || 77.5946,
         isOpen: s.is_open,
         type: (s.category as any) || 'general',
-        store_type: 'grocery',
+        store_type: (s.store_type as any) || 'grocery',
         availableProductIds: [], 
-        upiId: s.upi_id
+        upiId: s.upi_id,
+        isRegistered: true
     }));
 };
 
@@ -43,7 +43,7 @@ export const fetchStoreInventory = async (storeId: string) => {
         .eq('in_stock', true);
     
     if (error) {
-        console.error("Inventory error:", error);
+        console.error("Inventory sync failed:", error);
         return [];
     }
     return data;

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Store, OrderMode } from '../types';
 import { getRoute } from '../services/routingService';
@@ -46,28 +45,29 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   const prevBoundsHash = useRef<string>("");
   const [routePath, setRoutePath] = useState<[number, number][]>([]);
 
-  const getMarkerHtml = (type: Store['type'], isSelected: boolean) => {
+  const getMarkerHtml = (type: Store['type'], isSelected: boolean, storeName: string) => {
     const emoji = type === 'produce' ? '🥦' : type === 'dairy' ? '🥛' : '🏪';
     const bgColor = type === 'produce' ? 'bg-emerald-500' : type === 'dairy' ? 'bg-blue-500' : 'bg-orange-500';
     const borderColor = isSelected ? 'border-slate-900' : 'border-white';
     
     if (isSelected) {
-        const triangleColor = type === 'produce' ? 'border-t-emerald-500' : type === 'dairy' ? 'border-t-blue-500' : 'border-t-orange-500';
         return `
-          <div class="relative flex flex-col items-center justify-center transition-all duration-300 z-50 -translate-y-6">
-             <div class="${bgColor} w-12 h-12 rounded-full flex items-center justify-center shadow-2xl border-[3px] ${borderColor} z-20">
-                <span class="text-2xl leading-none select-none filter drop-shadow-sm">${emoji}</span>
+          <div class="relative flex flex-col items-center justify-center animate-bounce-soft z-50 -translate-y-8">
+             <div class="absolute -top-12 bg-slate-900 text-white text-[8px] font-black px-3 py-1.5 rounded-xl shadow-2xl whitespace-nowrap border border-white/10 uppercase tracking-widest z-[60]">
+                ${storeName}
              </div>
-             <div class="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[12px] ${triangleColor} -mt-[1px] z-10"></div>
-             <div class="absolute -bottom-1 w-4 h-1.5 bg-black/20 blur-[2px] rounded-full"></div>
+             <div class="${bgColor} w-14 h-14 rounded-[20px] flex items-center justify-center shadow-2xl border-[4px] ${borderColor} z-20">
+                <span class="text-3xl leading-none select-none">${emoji}</span>
+             </div>
+             <div class="w-2 h-2 bg-slate-900 rounded-full mt-2 shadow-lg"></div>
           </div>
         `;
     }
 
     return `
-      <div class="relative flex items-center justify-center transition-transform duration-300 hover:scale-110 z-10">
-         <div class="${bgColor} w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-white opacity-90">
-            <span class="text-sm leading-none select-none">${emoji}</span>
+      <div class="relative flex items-center justify-center transition-transform duration-300 hover:scale-125 z-10">
+         <div class="${bgColor} w-9 h-9 rounded-2xl flex items-center justify-center shadow-lg border-2 border-white opacity-95">
+            <span class="text-lg leading-none select-none">${emoji}</span>
          </div>
       </div>
     `;
@@ -79,7 +79,11 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     setFollowUser(true);
     if (onRequestLocation) onRequestLocation();
     if (userLat && userLng && mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo([userLat, userLng], 18, { animate: true, duration: 1.2 });
+        mapInstanceRef.current.flyTo([userLat, userLng], 18, { 
+            animate: true, 
+            duration: 1.5,
+            easeLinearity: 0.25
+        });
     }
     setTimeout(() => setIsLocating(false), 2000);
   };
@@ -94,8 +98,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
         zoom: 16,
         zoomControl: false,
         attributionControl: false,
-        zoomSnap: 0.1,
-        zoomDelta: 1
+        zoomSnap: 0.1
       });
 
       mapInstanceRef.current.on('movestart', (e: any) => {
@@ -105,41 +108,48 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       });
     }
 
-    // Hardcoded to street tiles as requested
     const streetTiles = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
     
     if (!mapInstanceRef.current._tileLayer) {
       mapInstanceRef.current._tileLayer = L.tileLayer(streetTiles, {
-          maxZoom: 21
+          maxZoom: 21,
+          className: 'map-tiles'
       }).addTo(mapInstanceRef.current);
     }
 
+    // High-Precision User Marker
     if (userLat && userLng) {
       if (!userMarkerRef.current) {
         const userIcon = L.divIcon({
-          className: 'user-marker-container',
+          className: 'user-marker-radar',
           html: `
-            <div class="relative flex items-center justify-center w-8 h-8">
-               <div class="absolute w-full h-full bg-emerald-500/30 rounded-full animate-ping"></div>
-               <div class="relative w-4 h-4 bg-emerald-600 rounded-full border-2 border-white shadow-lg"></div>
+            <div class="relative flex items-center justify-center w-10 h-10">
+               <div class="absolute w-full h-full bg-emerald-500/20 rounded-full animate-ping"></div>
+               <div class="absolute w-6 h-6 bg-emerald-500/40 rounded-full animate-pulse"></div>
+               <div class="relative w-4 h-4 bg-emerald-600 rounded-full border-[3px] border-white shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
             </div>
           `,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16]
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
         });
-        userMarkerRef.current = L.marker([userLat, userLng], { icon: userIcon, zIndexOffset: 1000 }).addTo(mapInstanceRef.current);
+        userMarkerRef.current = L.marker([userLat, userLng], { 
+            icon: userIcon, 
+            zIndexOffset: 1000 
+        }).addTo(mapInstanceRef.current);
       } else {
         userMarkerRef.current.setLatLng([userLat, userLng]);
       }
 
+      // Accuracy Circle - Precise Representation
       if (userAccuracy) {
           if (!accuracyCircleRef.current) {
             accuracyCircleRef.current = L.circle([userLat, userLng], {
                 radius: userAccuracy,
                 color: '#10b981',
                 fillColor: '#10b981',
-                fillOpacity: 0.12,
-                weight: 1.5,
+                fillOpacity: 0.08,
+                weight: 1,
+                dashArray: '5, 5',
                 interactive: false
             }).addTo(mapInstanceRef.current);
           } else {
@@ -148,30 +158,32 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
           }
       }
 
-      if (followUser && !showRoute) {
-          mapInstanceRef.current.panTo([userLat, userLng], { animate: true, duration: 0.6 });
+      if (followUser && !showRoute && !selectedStore) {
+          mapInstanceRef.current.panTo([userLat, userLng], { animate: true, duration: 0.8 });
       }
     }
 
+    // Driver Marker - Logistics Accuracy
     if (driverLocation) {
         if (!driverMarkerRef.current) {
              const driverIcon = L.divIcon({
-                 className: 'driver-marker-container',
+                 className: 'driver-marker-logistics',
                  html: `
-                    <div class="relative flex flex-col items-center justify-center transition-all duration-300">
-                       <div class="absolute -top-10 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap z-[60] border border-white/10 uppercase tracking-widest">Delivery Partner 🛵</div>
-                       <div class="relative w-14 h-14 flex items-center justify-center z-50">
-                          <div class="absolute inset-0 bg-emerald-500 rounded-full opacity-25 animate-ping"></div>
-                          <div class="relative w-11 h-11 bg-white rounded-full border-[3px] border-emerald-500 shadow-2xl flex items-center justify-center transition-transform hover:scale-110">
-                              <span class="text-2xl transform -scale-x-100 filter drop-shadow-sm">🛵</span>
-                          </div>
+                    <div class="relative flex flex-col items-center justify-center">
+                       <div class="absolute -top-12 bg-emerald-600 text-white text-[9px] font-black px-4 py-2 rounded-2xl shadow-2xl z-[60] border border-white/20 uppercase tracking-widest animate-fade-in">Partner On Way 🛵</div>
+                       <div class="w-12 h-12 bg-white rounded-2xl border-[3px] border-emerald-500 shadow-2xl flex items-center justify-center animate-float">
+                          <span class="text-2xl transform -scale-x-100">🛵</span>
                        </div>
+                       <div class="w-1.5 h-1.5 bg-emerald-600 rounded-full mt-2 animate-ping"></div>
                     </div>
                  `,
-                 iconSize: [56, 56],
-                 iconAnchor: [28, 28]
+                 iconSize: [48, 48],
+                 iconAnchor: [24, 24]
              });
-             driverMarkerRef.current = L.marker([driverLocation.lat, driverLocation.lng], { icon: driverIcon, zIndexOffset: 10000 }).addTo(mapInstanceRef.current);
+             driverMarkerRef.current = L.marker([driverLocation.lat, driverLocation.lng], { 
+                 icon: driverIcon, 
+                 zIndexOffset: 10000 
+             }).addTo(mapInstanceRef.current);
         } else {
              driverMarkerRef.current.setLatLng([driverLocation.lat, driverLocation.lng]);
         }
@@ -180,26 +192,34 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
         driverMarkerRef.current = null;
     }
 
+    // Clear old store markers
     markersRef.current.forEach(m => mapInstanceRef.current.removeLayer(m));
     markersRef.current = [];
 
+    // Registered Store Pins
     stores.forEach(store => {
       const isSelected = selectedStore?.id === store.id;
       const icon = L.divIcon({
-        className: 'custom-store-marker',
-        html: getMarkerHtml(store.type, isSelected),
-        iconSize: isSelected ? [48, 60] : [32, 32],
-        iconAnchor: isSelected ? [24, 60] : [16, 16] 
+        className: 'custom-store-pin',
+        html: getMarkerHtml(store.type, isSelected, store.name),
+        iconSize: isSelected ? [56, 70] : [36, 36],
+        iconAnchor: isSelected ? [28, 70] : [18, 18] 
       });
 
-      const marker = L.marker([store.lat, store.lng], { icon, zIndexOffset: isSelected ? 900 : 100 })
-        .addTo(mapInstanceRef.current);
+      const marker = L.marker([store.lat, store.lng], { 
+          icon, 
+          zIndexOffset: isSelected ? 900 : 100 
+      }).addTo(mapInstanceRef.current);
       
       marker.on('click', () => {
         onSelectStore(store);
         prevBoundsHash.current = "";
         setFollowUser(false);
-        mapInstanceRef.current.flyTo([store.lat, store.lng], 17, { animate: true, duration: 1 });
+        mapInstanceRef.current.flyTo([store.lat, store.lng], 17.5, { 
+            animate: true, 
+            duration: 1.2,
+            padding: [50, 50]
+        });
       });
       markersRef.current.push(marker);
     });
@@ -209,29 +229,39 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       routeLineRef.current = null;
     }
 
+    // Route Rendering - Logic Consistency
     if (routePath.length > 0) {
        routeLineRef.current = L.polyline(routePath, {
          color: '#10b981',
          weight: 6,
-         opacity: 0.9,
+         opacity: 0.8,
          lineCap: 'round',
-         lineJoin: 'round'
+         lineJoin: 'round',
+         dashArray: '1, 12'
        }).addTo(mapInstanceRef.current);
 
        const boundsHash = `route-${routePath[0][0]}-${routePath[routePath.length-1][0]}`;
        if (prevBoundsHash.current !== boundsHash) {
            const bounds = L.latLngBounds(routePath);
-           mapInstanceRef.current.fitBounds(bounds, { padding: [60, 60], maxZoom: 17, animate: true });
+           mapInstanceRef.current.fitBounds(bounds, { 
+               padding: [80, 80], 
+               maxZoom: 17, 
+               animate: true 
+           });
            prevBoundsHash.current = boundsHash;
            setFollowUser(false);
        }
     } else if (stores.length > 0 && userLat && userLng && !showRoute) {
-        const boundsHash = `stores-${stores.length}-${userLat}-${userLng}`;
+        const boundsHash = `discovery-${stores.length}-${userLat}-${userLng}`;
         if (prevBoundsHash.current !== boundsHash) {
             const allPoints = stores.map(s => L.latLng(s.lat, s.lng));
             allPoints.push(L.latLng(userLat, userLng));
             const bounds = L.latLngBounds(allPoints);
-            mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            mapInstanceRef.current.fitBounds(bounds, { 
+                padding: [60, 60], 
+                maxZoom: 16.5,
+                animate: true
+            });
             prevBoundsHash.current = boundsHash;
         }
     }
@@ -269,10 +299,17 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     <div className={`relative w-full bg-slate-100 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full z-0 transition-opacity duration-700" />
       
+      {/* Precision Controls */}
+      <div className="absolute top-4 right-4 z-[500] pointer-events-none flex flex-col gap-2">
+         <div className="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white shadow-lg pointer-events-auto">
+             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Map Source: Voyager</span>
+         </div>
+      </div>
+
       <div className="absolute bottom-4 left-4 right-4 z-[500] flex items-center justify-end pointer-events-none">
           <button 
             onClick={handleRecenter}
-            className={`w-11 h-11 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center transition-all active:scale-90 border pointer-events-auto ${
+            className={`w-12 h-12 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center transition-all active:scale-90 border pointer-events-auto ${
                 followUser ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white/90 text-slate-800 border-white/50'
             }`}
           >

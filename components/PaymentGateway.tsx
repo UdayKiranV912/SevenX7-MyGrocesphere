@@ -56,15 +56,16 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
     setSelectedUpiApp(appName);
     
     if (!isDemo) {
-        // Real-Time User: Redirect to UPI App
-        // Format: upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=CURRENCY
-        const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=SevenX7%20Admin&am=${amount}&cu=INR&tn=Order%20Payment`;
+        // Construct standard UPI intent URL for mobile redirect
+        const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=SevenX7%20Admin&am=${amount}&cu=INR&tn=Grocesphere%20Order`;
+        
+        // Attempt redirect
         window.location.href = upiUrl;
         
-        // After redirecting, move to manual entry step
+        // Move to verification screen after a delay
         setTimeout(() => setStep('WAITING_VERIFICATION'), 2000);
     } else {
-        // Demo Mode: Simulate processing
+        // Demo Mode Simulation
         setStep('PROCESSING');
         timerRef.current = setTimeout(() => {
             setStep('WAITING_VERIFICATION');
@@ -74,19 +75,21 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
   const verifyWithAdmin = () => {
       if (!isDemo && !transactionId.trim()) {
-          setErrorMsg('Transaction ID is required for verification.');
+          setErrorMsg('Transaction ID is required.');
           return;
       }
 
       setStep('ADMIN_CHECKING');
       
-      const verificationDelay = isDemo ? 2000 : 4000;
+      const verificationDelay = isDemo ? 2000 : 4500;
       
       timerRef.current = setTimeout(() => {
-          // Failure simulation (10% chance in real mode for demo of error handling)
-          if (!isDemo && Math.random() < 0.1) {
+          // Failure simulation (e.g. invalid ID or not received)
+          const isFailed = !isDemo && (transactionId.length < 10 || Math.random() < 0.2);
+          
+          if (isFailed) {
               setStep('FAILURE');
-              setErrorMsg('Transaction verification failed. Please check your ID and try again.');
+              setErrorMsg('Payment verification failed. Ensure you used the correct Transaction ID.');
           } else {
               setStep('SUCCESS');
               timerRef.current = setTimeout(() => triggerSuccess(), 1500);
@@ -108,29 +111,21 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
               <div>
                 <h3 className="text-xl font-black text-slate-900 mb-1 leading-tight uppercase tracking-tight">Pickup & Pay</h3>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                    Pay ₹{amount} at <span className="text-slate-900">{storeName}</span> via Cash/UPI upon collection.
+                    Pay ₹{amount} at <span className="text-slate-900">{storeName}</span> directly via Cash/UPI.
                 </p>
               </div>
               <button onClick={() => triggerSuccess('POP: Pay at Store')} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">Confirm Order</button>
-              <button onClick={() => setStep('SELECT')} className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Back</button>
-          </div>
-      );
-
-      if (step === 'PROCESSING') return (
-          <div className="flex flex-col items-center justify-center py-20 animate-fade-in text-center px-10">
-              <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mb-6" />
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Awaiting {selectedUpiApp}</h3>
-              <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase">Complete payment in your app and return here.</p>
+              <button onClick={() => setStep('SELECT')} className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">Back</button>
           </div>
       );
 
       if (step === 'WAITING_VERIFICATION') return (
           <div className="p-8 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-6 text-center">
-              <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto">💳</div>
+              <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto">📋</div>
               <div>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-tight">Payment Verification</h3>
+                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Verify Payment</h3>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-2">
-                    {isDemo ? 'Demo Mode: Enter any ID to simulate payment.' : 'Enter the 12-digit UPI Transaction Ref ID.'}
+                    Enter the Transaction ID / Ref No. from your UPI app for Super Admin verification.
                 </p>
               </div>
 
@@ -139,11 +134,14 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                     type="text" 
                     placeholder="Transaction ID / Ref No."
                     value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value)}
+                    onChange={(e) => {
+                        setTransactionId(e.target.value);
+                        setErrorMsg('');
+                    }}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center text-xs font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-emerald-50 transition-all"
                   />
-                  {errorMsg && <p className="text-[9px] text-red-500 font-black uppercase">{errorMsg}</p>}
-                  <button onClick={verifyWithAdmin} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Submit for Verification</button>
+                  {errorMsg && <p className="text-[9px] text-red-500 font-black uppercase bg-red-50 p-2 rounded-xl">{errorMsg}</p>}
+                  <button onClick={verifyWithAdmin} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Submit ID</button>
               </div>
           </div>
       );
@@ -155,8 +153,8 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                 <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center text-3xl">🛡️</div>
               </div>
-              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Super Admin Verifying</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Checking transaction logs for ₹{amount}</p>
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Admin Verifying</h3>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Scanning bank receipts for ID: {transactionId}</p>
           </div>
       );
 
@@ -164,7 +162,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
           <div className="text-center p-10 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-8">
               <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-4xl mx-auto border-4 border-red-100">✕</div>
               <div>
-                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Verification Failed</h3>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Payment Issue</h3>
                   <p className="text-[9px] font-bold text-slate-500 mt-3 uppercase leading-relaxed">{errorMsg}</p>
               </div>
               <button onClick={() => setStep('WAITING_VERIFICATION')} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Try Again</button>
@@ -177,7 +175,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                   <svg className="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
               </div>
               <h2 className="text-3xl font-black mb-3 uppercase tracking-tighter">Verified</h2>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Payment received by Super Admin</p>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Funds Received by Super Admin</p>
           </div>
       );
 
@@ -200,7 +198,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
               <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-40 hide-scrollbar">
                   {orderMode === 'PICKUP' && (
                     <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">In-Store Settlement</h3>
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Local Pickup Method</h3>
                         <button 
                             onClick={() => setStep('POP_CONFIRM')}
                             className="w-full p-5 bg-white rounded-[24px] border-2 border-emerald-500 flex items-center justify-between shadow-soft group transition-all active:scale-[0.98]"
@@ -209,7 +207,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                                 <div className="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-2xl border border-emerald-100">🤝</div>
                                 <div className="text-left">
                                     <span className="font-black text-sm uppercase tracking-tight block text-slate-900">Pay at Store</span>
-                                    <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">Recommended for Pickup</span>
+                                    <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">Cash or Store UPI</span>
                                 </div>
                             </div>
                             <span className="text-emerald-500">→</span>
@@ -218,7 +216,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                   )}
 
                   <div className="space-y-3 pt-2">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">UPI Apps</h3>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Digital UPI (to Super Admin)</h3>
                       {['Google Pay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
                           <button 
                             key={app} 
@@ -236,7 +234,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
                   <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 mt-4">
                       <p className="text-[8px] font-black text-emerald-700 uppercase tracking-[0.2em] leading-relaxed">
-                          Your payment will be received by the <strong className="text-slate-900">SevenX7 Super Admin</strong> and disbursed to the mart upon order fulfillment.
+                          Your digital payment will be escrowed by <strong className="text-slate-900">Super Admin</strong> and released to the mart upon delivery verification.
                       </p>
                   </div>
               </div>

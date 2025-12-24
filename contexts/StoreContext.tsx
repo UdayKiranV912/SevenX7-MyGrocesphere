@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
 import { MOCK_STORES } from '../constants';
@@ -95,6 +94,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // REAL TIME: Load only DB-registered stores
     if (!lat || !lng) {
+        setAvailableStores([]);
         setIsLoading(false);
         return;
     }
@@ -111,7 +111,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setAvailableStores(hydratedStores);
         }
     } catch (e) {
-        console.error("Store loading failed", e);
+        console.error("Store discovery failed", e);
         setAvailableStores([]);
     } finally {
         setIsLoading(false);
@@ -124,9 +124,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user.location, user.isAuthenticated, loadStores]);
 
+  // Real-time synchronization for Registered Stores & Orders
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
-        const channel = supabase
+        // Listen for store registration updates
+        const storeChannel = supabase
+            .channel('public:stores')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => {
+                loadStores(user.location?.lat, user.location?.lng);
+            })
+            .subscribe();
+
+        // Listen for order status updates
+        const orderChannel = supabase
             .channel(`public:orders:customer:${user.id}`)
             .on('postgres_changes', { 
                 event: 'UPDATE', 
@@ -136,12 +146,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }, (payload) => {
                 const updatedOrder = payload.new as any;
                 setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, status: updatedOrder.status } : o));
-                showToast(`Order status updated: ${updatedOrder.status}`);
+                showToast(`Update: Order ${updatedOrder.status}`);
             })
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
+
+        return () => { 
+            supabase.removeChannel(storeChannel); 
+            supabase.removeChannel(orderChannel);
+        };
     }
-  }, [user.isAuthenticated, user.id, showToast]);
+  }, [user.isAuthenticated, user.id, user.location, loadStores, showToast]);
 
   const detectLocation = useCallback(async () => {
     if (!navigator.geolocation) { showToast("GPS not supported"); return; }
@@ -171,10 +185,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (user.id === 'demo-user') {
             setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
         } else {
-            showToast("Location denied. Please enable GPS for real-time marts."); 
+            showToast("Precision Location Denied. Using network defaults."); 
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   }, [showToast, user.id]);
 
@@ -214,7 +228,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }).select().single();
 
           if (orderError) {
-              showToast("Failed to place order in database.");
+              showToast("Failed to secure order. Retry later.");
               return;
           }
 
@@ -226,17 +240,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   unit_price: item.price
               }));
               await supabase.from('order_items').insert(itemsToInsert);
-
-              await supabase.from('payment_splits').insert({
-                  order_id: orderData.id,
-                  store_amount: order.splits?.storeAmount || 0,
-                  delivery_fee: order.splits?.deliveryFee || 0,
-                  admin_amount: 5,
-                  store_upi: order.splits?.storeUpi || '',
-                  admin_upi: 'sevenx7.admin@okaxis',
-                  total_paid: order.total
-              });
-
               order.id = orderData.id;
           }
       }

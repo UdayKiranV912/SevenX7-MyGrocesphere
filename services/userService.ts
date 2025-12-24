@@ -1,9 +1,10 @@
+
 import { UserState } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 export const registerUser = async (email: string, pass: string, name: string, phone: string) => {
     if (!isSupabaseConfigured) {
-        throw new Error("Backend not configured. Please check SUPABASE_URL and SUPABASE_ANON_KEY environment variables.");
+        throw new Error("Backend not configured.");
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -21,13 +22,14 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     if (error) throw error;
 
     if (data.user) {
+        // Create profile with 'pending' status. Only super-admin can change this to 'verified' via dashboard.
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
             phone_number: phone,
             email: email,
             role: 'customer',
-            verificationStatus: 'pending' // Force initial state
+            verificationStatus: 'pending' 
         });
         if (profileError) console.error("Profile sync error:", profileError);
     }
@@ -38,11 +40,10 @@ export const registerUser = async (email: string, pass: string, name: string, ph
 export const submitAccessCode = async (userId: string, code: string) => {
     if (!isSupabaseConfigured) return true;
     
-    // In a real production environment, this would verify against a generated code.
-    // Here we simulate the handshake by updating a 'submitted_code' field or similar.
+    // Updates the profile with the code for admin review
     const { error } = await supabase
         .from('profiles')
-        .update({ last_access_code: code })
+        .update({ submitted_verification_code: code })
         .eq('id', userId);
     
     if (error) throw error;
@@ -51,7 +52,7 @@ export const submitAccessCode = async (userId: string, code: string) => {
 
 export const loginUser = async (email: string, pass: string): Promise<UserState> => {
     if (!isSupabaseConfigured) {
-        throw new Error("Backend not configured. Please use Demo Mode or configure environment variables.");
+        throw new Error("Backend not configured.");
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -67,24 +68,25 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         .eq('id', data.user.id)
         .single();
 
-    if (profile?.verificationStatus === 'pending') {
+    // The core logic: block login if not verified by Super Admin
+    if (!profile || profile.verificationStatus === 'pending') {
         throw new Error("AWAITING_APPROVAL");
     }
     
-    if (profile?.verificationStatus === 'rejected') {
-        throw new Error("Your registration request was declined by the Admin.");
+    if (profile.verificationStatus === 'rejected') {
+        throw new Error("Account rejected by administrator.");
     }
 
     return {
         isAuthenticated: true,
         id: data.user.id,
-        name: profile?.full_name || email.split('@')[0],
-        phone: profile?.phone_number || '',
+        name: profile.full_name || email.split('@')[0],
+        phone: profile.phone_number || '',
         email: email,
         location: null,
-        address: profile?.address || '',
+        address: profile.address || '',
         savedCards: [],
-        verificationStatus: profile?.verificationStatus || 'pending'
+        verificationStatus: profile.verificationStatus
     };
 };
 
