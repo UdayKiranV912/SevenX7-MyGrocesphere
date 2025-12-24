@@ -1,4 +1,3 @@
-
 import { UserState } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -27,12 +26,27 @@ export const registerUser = async (email: string, pass: string, name: string, ph
             full_name: name,
             phone_number: phone,
             email: email,
-            role: 'customer'
+            role: 'customer',
+            verificationStatus: 'pending' // Force initial state
         });
         if (profileError) console.error("Profile sync error:", profileError);
     }
 
     return data.user;
+};
+
+export const submitAccessCode = async (userId: string, code: string) => {
+    if (!isSupabaseConfigured) return true;
+    
+    // In a real production environment, this would verify against a generated code.
+    // Here we simulate the handshake by updating a 'submitted_code' field or similar.
+    const { error } = await supabase
+        .from('profiles')
+        .update({ last_access_code: code })
+        .eq('id', userId);
+    
+    if (error) throw error;
+    return true;
 };
 
 export const loginUser = async (email: string, pass: string): Promise<UserState> => {
@@ -53,6 +67,14 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         .eq('id', data.user.id)
         .single();
 
+    if (profile?.verificationStatus === 'pending') {
+        throw new Error("AWAITING_APPROVAL");
+    }
+    
+    if (profile?.verificationStatus === 'rejected') {
+        throw new Error("Your registration request was declined by the Admin.");
+    }
+
     return {
         isAuthenticated: true,
         id: data.user.id,
@@ -61,7 +83,8 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         email: email,
         location: null,
         address: profile?.address || '',
-        savedCards: []
+        savedCards: [],
+        verificationStatus: profile?.verificationStatus || 'pending'
     };
 };
 

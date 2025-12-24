@@ -4,6 +4,8 @@ import { supabase } from './supabase';
 
 export const fetchVerifiedStores = async (lat: number, lng: number): Promise<Store[]> => {
     // Queries verified and currently open stores
+    // Note: In production, we'd use a PostGIS spatial query for 'around:radius'.
+    // Here we fetch verified partners and will filter by distance client-side for simplicity.
     const { data: stores, error } = await supabase
         .from('stores')
         .select('*')
@@ -15,18 +17,20 @@ export const fetchVerifiedStores = async (lat: number, lng: number): Promise<Sto
         return [];
     }
 
+    if (!stores || stores.length === 0) return [];
+
     return stores.map(s => ({
         id: s.id,
         name: s.name,
         address: s.address,
-        rating: 4.5, // Default rating or join from seller_ratings
+        rating: 4.5,
         distance: 'Nearby',
-        lat: s.lat || 12.9716, // Use lat/lng if columns exist, otherwise default center
-        lng: s.lng || 77.5946,
+        lat: parseFloat(s.lat) || 12.9716,
+        lng: parseFloat(s.lng) || 77.5946,
         isOpen: s.is_open,
-        type: 'general',
+        type: (s.category as any) || 'general',
         store_type: 'grocery',
-        availableProductIds: [], // To be populated via fetchStoreInventory
+        availableProductIds: [], 
         upiId: s.upi_id
     }));
 };

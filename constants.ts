@@ -89,10 +89,20 @@ export const PRODUCE_IDS = INITIAL_PRODUCTS.filter(p => p.category === 'Veg & Fr
 export const GENERAL_IDS = INITIAL_PRODUCTS.map(p => p.id);
 
 export const MOCK_STORES: Store[] = [
+  // Indiranagar area
   { id: 'blr-ind-1', name: "Nandini Milk Parlour", address: "CMH Road, Indiranagar", rating: 4.8, distance: "0.2 km", lat: 12.9784, lng: 77.6408, isOpen: true, type: 'dairy', store_type: 'grocery', availableProductIds: DAIRY_IDS, upiId: 'nandini.ind@okaxis' },
   { id: 'blr-ind-2', name: "MK Ahmed Bazaar", address: "12th Main, Indiranagar", rating: 4.5, distance: "0.5 km", lat: 12.9700, lng: 77.6380, isOpen: true, type: 'general', store_type: 'grocery', availableProductIds: GENERAL_IDS, upiId: 'mkahmed@okhdfc' },
   { id: 'blr-ind-3', name: "Hopcoms Fresh", address: "Double Road, Indiranagar", rating: 4.6, distance: "0.8 km", lat: 12.9750, lng: 77.6400, isOpen: true, type: 'produce', store_type: 'grocery', availableProductIds: PRODUCE_IDS, upiId: 'hopcoms@okicici' },
+  
+  // Koramangala area
   { id: 'blr-korm-1', name: "Organic World", address: "6th Block, Koramangala", rating: 4.7, distance: "1.2 km", lat: 12.9345, lng: 77.6268, isOpen: true, type: 'produce', store_type: 'grocery', availableProductIds: PRODUCE_IDS, upiId: 'organicworld@oksbi' },
+  { id: 'blr-korm-2', name: "Namdhari's Fresh", address: "80 Feet Rd, Koramangala", rating: 4.9, distance: "1.5 km", lat: 12.9360, lng: 77.6240, isOpen: true, type: 'produce', store_type: 'grocery', availableProductIds: PRODUCE_IDS, upiId: 'namdharis@okaxis' },
+  
+  // Jayanagar area
+  { id: 'blr-jay-1', name: "Jayanagar Mart", address: "4th Block, Jayanagar", rating: 4.4, distance: "0.9 km", lat: 12.9280, lng: 77.5850, isOpen: true, type: 'general', store_type: 'grocery', availableProductIds: GENERAL_IDS, upiId: 'jayanagarmart@okhdfc' },
+  
+  // Whitefield area
+  { id: 'blr-wf-1', name: "Star Bazaar", address: "Prestige Shantiniketan, Whitefield", rating: 4.3, distance: "2.1 km", lat: 12.9840, lng: 77.7330, isOpen: true, type: 'general', store_type: 'grocery', availableProductIds: GENERAL_IDS, upiId: 'starbazaar.wf@okicici' }
 ];
 
 export const MOCK_ADS: AdCampaign[] = [

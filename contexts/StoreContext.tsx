@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
 import { MOCK_STORES } from '../constants';
@@ -83,23 +84,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const activeStore = manualStore || nearestStore;
 
   const loadStores = useCallback(async (lat?: number, lng?: number) => {
+    setIsLoading(true);
+    
+    // DEMO MODE: Load all Mock Bengaluru stores
     if (user.id === 'demo-user') {
         setAvailableStores(MOCK_STORES);
         setIsLoading(false);
         return;
     }
 
-    if (!lat || !lng) return;
+    // REAL TIME: Load only DB-registered stores
+    if (!lat || !lng) {
+        setIsLoading(false);
+        return;
+    }
 
-    setIsLoading(true);
     try {
         const stores = await fetchVerifiedStores(lat, lng);
-        const hydratedStores = await Promise.all(stores.map(async (s) => {
-            const inventory = await fetchStoreInventory(s.id);
-            return { ...s, availableProductIds: inventory.map(i => i.product_id) };
-        }));
-        setAvailableStores(hydratedStores);
+        if (stores.length === 0) {
+            setAvailableStores([]);
+        } else {
+            const hydratedStores = await Promise.all(stores.map(async (s) => {
+                const inventory = await fetchStoreInventory(s.id);
+                return { ...s, availableProductIds: inventory.map(i => i.product_id) };
+            }));
+            setAvailableStores(hydratedStores);
+        }
     } catch (e) {
+        console.error("Store loading failed", e);
         setAvailableStores([]);
     } finally {
         setIsLoading(false);
@@ -107,13 +119,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [user.id]);
 
   useEffect(() => {
-    if (user.id === 'demo-user') {
-        setAvailableStores(MOCK_STORES);
-        setIsLoading(false);
-    } else if (user.location) {
-        loadStores(user.location.lat, user.location.lng);
+    if (user.isAuthenticated) {
+        loadStores(user.location?.lat, user.location?.lng);
     }
-  }, [user.location, user.id, loadStores]);
+  }, [user.location, user.isAuthenticated, loadStores]);
 
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
@@ -159,11 +168,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       },
       () => { 
         setIsLoading(false); 
-        if (user.id !== 'demo-user') {
-          showToast("Location denied"); 
+        if (user.id === 'demo-user') {
+            setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
         } else {
-          // Default demo location if denied
-          setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
+            showToast("Location denied. Please enable GPS for real-time marts."); 
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
