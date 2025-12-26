@@ -10,7 +10,7 @@ import { Toast } from './components/Toast';
 import { ShopPage } from './pages/Shop';
 import { MyOrders } from './components/MyOrders';
 import { ProfilePage } from './pages/Profile';
-import { getRoute, interpolatePosition } from './services/routingService';
+import { getRoute, interpolatePosition, calculateHaversineDistance, AVG_DELIVERY_SPEED_MPS } from './services/routingService';
 
 const AppContent: React.FC = () => {
   const { 
@@ -111,7 +111,10 @@ const AppContent: React.FC = () => {
 
           let currentNodeIndex = 0;
           let nodeProgress = 0;
-          const simulationSpeed = user.id === 'demo-user' ? 0.05 : 0.01; // Slower for real look
+          
+          // Simulation settings
+          const tickRate = 500; // Update every 500ms
+          const simulationSpeed = user.id === 'demo-user' ? 0.08 : 0.02;
 
           simulationIntervals.current[order.id] = window.setInterval(() => {
             if (currentNodeIndex >= path.length - 1) {
@@ -133,10 +136,9 @@ const AppContent: React.FC = () => {
             if (currentNodeIndex < path.length - 1) {
               const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
               
-              // Progress ratio (0 to 1)
-              const pathProgress = (currentNodeIndex + nodeProgress) / path.length;
-              const distRem = Math.max(0, totalDistance * (1 - pathProgress));
-              const timeRem = Math.max(0, totalDuration * (1 - pathProgress));
+              // Calculate remaining metrics based on the current position relative to goal
+              const distRem = calculateHaversineDistance(pos[0], pos[1], targetLocation.lat, targetLocation.lng);
+              const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
 
               setDriverLocations(prev => ({ 
                 ...prev, 
@@ -148,7 +150,7 @@ const AppContent: React.FC = () => {
                 } 
               }));
             }
-          }, 1000);
+          }, tickRate);
       }
     });
   }, [orders, updateOrderStatus, setDriverLocations, showToast, user.location, user.id]);

@@ -1,7 +1,7 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Store, OrderMode, DriverLocationState } from '../types';
-import { getRoute } from '../services/routingService';
+import { getRoute, calculateHaversineDistance, AVG_DELIVERY_SPEED_MPS } from '../services/routingService';
 
 interface MapVisualizerProps {
   stores: Store[];
@@ -47,6 +47,27 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   
   const prevBoundsHash = useRef<string>("");
   const [routePath, setRoutePath] = useState<[number, number][]>([]);
+
+  // DYNAMIC LOGISTICS CALCULATION
+  // We calculate distance on-the-fly if not provided by parent state
+  const logisticsMetrics = useMemo(() => {
+    if (!driverLocation || userLat === null || userLng === null) return null;
+    
+    // If the simulation/backend provided values, use them. 
+    // Otherwise, calculate real-time straight-line distance as fallback.
+    const distance = driverLocation.distanceRemaining ?? calculateHaversineDistance(
+        driverLocation.lat, driverLocation.lng, userLat, userLng
+    );
+    
+    // Estimate time (1.2 multiplier for traffic)
+    const time = driverLocation.timeRemaining ?? ((distance / AVG_DELIVERY_SPEED_MPS) * 1.2);
+    
+    return {
+        distanceKm: (distance / 1000).toFixed(1),
+        timeMins: Math.ceil(time / 60),
+        progress: Math.max(5, Math.min(100, (1 - (distance / 5000)) * 100))
+    };
+  }, [driverLocation, userLat, userLng]);
 
   const getMarkerHtml = (type: Store['type'], isSelected: boolean, storeName: string) => {
     const emoji = type === 'produce' ? '🥦' : type === 'dairy' ? '🥛' : '🏪';
@@ -131,7 +152,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
           html: `
             <div class="relative flex flex-col items-center justify-center">
                <div class="absolute -top-12 bg-emerald-600 text-white text-[8px] font-black px-3 py-1.5 rounded-xl shadow-2xl whitespace-nowrap border border-white/20 uppercase tracking-widest z-[60] animate-bounce-soft">
-                  You are here
+                  Delivery Point
                </div>
                <div class="relative flex items-center justify-center w-12 h-12">
                   <div class="absolute w-full h-full bg-emerald-500/10 rounded-full animate-ping"></div>
@@ -283,30 +304,36 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       <div ref={mapContainerRef} className="w-full h-full z-0 grayscale-[0.2]" />
       
       {/* Real-time Logistics HUD */}
-      {driverLocation && (
+      {logisticsMetrics && (
           <div className="absolute top-4 left-4 right-4 z-[500] pointer-events-none animate-slide-up">
               <div className="bg-slate-900/95 backdrop-blur-xl p-4 rounded-3xl border border-white/10 shadow-2xl flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl shadow-lg">🛵</div>
+                        <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20 relative">
+                            🛵
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-white rounded-full animate-ping"></div>
+                        </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Courier Tracking</span>
-                            <span className="text-[13px] font-black text-white">Live Road Path</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Active Tracking</span>
+                                <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse"></div>
+                            </div>
+                            <span className="text-[13px] font-black text-white">Road Path Sync</span>
                         </div>
                       </div>
                       <div className="text-right">
-                          <span className="block text-[14px] font-black text-white tabular-nums">
-                              {driverLocation.timeRemaining ? Math.ceil(driverLocation.timeRemaining / 60) : '--'} mins
+                          <span className="block text-[15px] font-black text-white tabular-nums">
+                              {logisticsMetrics.timeMins} mins
                           </span>
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                              {driverLocation.distanceRemaining ? (driverLocation.distanceRemaining / 1000).toFixed(1) : '--'} km
+                              {logisticsMetrics.distanceKm} km to goal
                           </span>
                       </div>
                   </div>
                   <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
                       <div 
-                        className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000"
-                        style={{ width: `${Math.max(10, 100 - (driverLocation.distanceRemaining ? (driverLocation.distanceRemaining / 5000) * 100 : 0))}%` }}
+                        className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000 ease-linear"
+                        style={{ width: `${logisticsMetrics.progress}%` }}
                       >
                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse"></div>
                       </div>
