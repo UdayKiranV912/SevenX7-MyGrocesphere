@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../contexts/StoreContext';
 import { PRODUCT_FAMILIES, INITIAL_PRODUCTS } from '../constants';
@@ -74,7 +75,8 @@ export const ShopPage: React.FC = () => {
           userLat={user.location?.lat || null} 
           userLng={user.location?.lng || null} 
           userInitial={user.name?.charAt(0) || '👤'}
-          userAccuracy={user.accuracy} 
+          userAccuracy={user.accuracy}
+          isLiveGPS={user.isLiveGPS} 
           selectedStore={activeStore} 
           onSelectStore={setActiveStore} 
           mode="DELIVERY" 

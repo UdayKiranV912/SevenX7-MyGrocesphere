@@ -175,6 +175,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const detectLocation = useCallback(async () => {
     if (!navigator.geolocation) { showToast("GPS Service Unavailable"); return; }
     setIsLoading(true);
+    
+    // Distinguish real-time users from demo users
+    const isDemo = user.id === 'demo-user';
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
@@ -186,24 +190,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             ...prev, 
             location: { lat: latitude, lng: longitude },
             accuracy: accuracy,
+            isLiveGPS: true, // Mark as real-time precision
             address: data.display_name,
             neighborhood: neighborhood
           }));
         } catch (e) {
-          setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude }, accuracy }));
+          setUser(prev => ({ 
+            ...prev, 
+            location: { lat: latitude, lng: longitude }, 
+            accuracy,
+            isLiveGPS: true 
+          }));
         } finally {
           setIsLoading(false);
         }
       },
-      () => { 
+      (error) => { 
+        console.warn("Geolocation Error:", error.message);
         setIsLoading(false); 
-        if (user.id === 'demo-user') {
-            setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
+        if (isDemo) {
+            setUser(prev => ({ 
+              ...prev, 
+              location: { lat: 12.9716, lng: 77.5946 }, 
+              neighborhood: 'Indiranagar',
+              isLiveGPS: false 
+            }));
         } else {
-            showToast("Precision Location Denied. Using fallback."); 
+            showToast("Precision Location Denied. Ensure GPS is ON."); 
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { 
+        enableHighAccuracy: true, 
+        timeout: 12000, 
+        maximumAge: 0 // Force fresh sensor data
+      }
     );
   }, [showToast, user.id]);
 

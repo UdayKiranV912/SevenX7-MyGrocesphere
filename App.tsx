@@ -71,11 +71,15 @@ const AppContent: React.FC = () => {
                 setUser(prev => ({ 
                   ...prev, 
                   location: { lat: latitude, lng: longitude },
-                  accuracy: accuracy 
+                  accuracy: accuracy,
+                  isLiveGPS: true // Real sensor update
                 }));
             },
-            (err) => console.warn("Watch GPS error:", err),
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            (err) => {
+               console.warn("Watch GPS error:", err);
+               setUser(prev => ({ ...prev, isLiveGPS: false }));
+            },
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
         );
     }
     return () => {
@@ -174,6 +178,7 @@ const AppContent: React.FC = () => {
       name: 'Demo User',
       phone: '9999999999',
       location: null,
+      isLiveGPS: false,
       savedCards: []
     });
     window.history.replaceState({ view: 'SHOP' }, '');
@@ -224,7 +229,8 @@ const AppContent: React.FC = () => {
     if (isLoading) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase">Locating...</span>
+           <span className="text-[11px] font-black text-emerald-600 tracking-tight leading-none uppercase animate-pulse">Syncing GPS...</span>
+           <span className="text-[6px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Acquiring Sensor Data</span>
         </div>
       );
     }
@@ -237,10 +243,17 @@ const AppContent: React.FC = () => {
       );
     }
 
+    const isLive = user.isLiveGPS && user.id !== 'demo-user';
+
     if (activeStore) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-0.5">Shopping At</span>
+           <div className="flex items-center gap-1.5 mb-0.5">
+             <div className={`w-1 h-1 rounded-full ${isLive ? 'bg-emerald-500 animate-ping' : 'bg-slate-300'}`}></div>
+             <span className={`text-[6px] font-black uppercase tracking-[0.2em] ${isLive ? 'text-emerald-500' : 'text-slate-400'}`}>
+                {isLive ? 'Live Precision' : 'Shopping At'}
+             </span>
+           </div>
            <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[140px]">
               {activeStore.name}
            </span>
@@ -251,6 +264,7 @@ const AppContent: React.FC = () => {
     return (
       <div className="flex flex-col items-center animate-fade-in">
          <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase truncate max-w-[160px]">{user.neighborhood || 'Finding Marts'}</span>
+         {isLive && <span className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.3em] mt-1 animate-fade-in">Real-time Fix</span>}
       </div>
     );
   };

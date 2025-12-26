@@ -84,6 +84,7 @@ export interface UserState {
   neighborhood?: string;
   location: { lat: number; lng: number } | null;
   accuracy?: number; 
+  isLiveGPS?: boolean;
   savedCards?: SavedCard[];
   role?: 'customer' | 'store_owner' | 'delivery_partner' | 'admin';
   verificationStatus?: 'pending' | 'verified' | 'rejected';
