@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Product, Variant, CartItem } from '../types';
+import { Product, Variant } from '../types';
 import { generateProductDetails } from '../services/geminiService';
 import { useStore } from '../contexts/StoreContext';
 
@@ -32,10 +32,12 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
 
   const brands = product.brands || [{name: 'Generic', price: product.price}];
   const variants = product.variants || [];
-  const basePrice = brands[selectedBrandIndex].price;
+  
+  const currentBrand = brands[selectedBrandIndex];
+  const basePrice = currentBrand.price;
   const variantMultiplier = variants.length > 0 ? variants[selectedVariantIndex].multiplier : 1;
   const finalPrice = Math.ceil(basePrice * variantMultiplier);
-  const currentBrandName = brands[selectedBrandIndex].name;
+  const currentBrandName = currentBrand.name;
   const currentVariant = variants.length > 0 ? variants[selectedVariantIndex] : undefined;
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -88,23 +90,20 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
 
       <div className="relative w-full max-w-lg bg-white rounded-t-[40px] shadow-2xl animate-slide-up overflow-hidden max-h-[96vh] flex flex-col border-t border-white/10">
         
-        {/* Header Indicator */}
         <div className="w-full flex justify-center pt-3 pb-1 shrink-0">
             <div className="w-10 h-1 bg-slate-200 rounded-full" />
         </div>
 
-        {/* Top Controls */}
         <div className="px-6 py-2 flex justify-between items-center shrink-0">
             <button onClick={onClose} className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors">✕</button>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Quality Profile</span>
             <div className="w-9" />
         </div>
 
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-2 pb-64"> 
             <div className="flex flex-col items-center text-center mb-8">
-                <div className="w-32 h-32 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-7xl shadow-inner border-4 border-white mb-6 transform rotate-1 animate-float">
-                    {product.emoji}
+                <div className="w-48 h-48 bg-slate-50 rounded-[2.5rem] flex items-center justify-center shadow-inner border-4 border-white mb-6 transform rotate-1 animate-float relative">
+                    <span className="text-7xl">{product.emoji}</span>
                 </div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2">{product.name}</h2>
                 <div className="flex items-center gap-4">
@@ -168,9 +167,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
             </div>
         </div>
 
-        {/* Persistent Action Section */}
         <div className="p-6 bg-white border-t border-slate-100 flex flex-col gap-4 shrink-0 shadow-[0_-15px_50px_rgba(0,0,0,0.1)] pb-12 z-[210]">
-            {/* Contextual Cart Bar */}
             {totalCartItems > 0 && (
               <div className="animate-slide-up mb-2">
                 <button 

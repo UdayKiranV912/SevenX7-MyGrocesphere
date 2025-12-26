@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Order, Store } from '../types';
 import { MapVisualizer } from './MapVisualizer';
@@ -97,11 +98,13 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
             </div>
 
             <div className="flex gap-2 overflow-x-auto hide-scrollbar py-2">
-                {order.items.slice(0, 5).map((item, i) => (
-                    <div key={i} className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-lg border border-slate-100 shrink-0 shadow-inner">
-                        {item.emoji}
-                    </div>
-                ))}
+                {order.items.slice(0, 5).map((item, i) => {
+                    return (
+                        <div key={i} className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-lg border border-slate-100 shrink-0 shadow-inner overflow-hidden">
+                            {item.emoji}
+                        </div>
+                    );
+                })}
             </div>
 
             {isExpanded && (
@@ -158,7 +161,12 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                     <div className="space-y-2.5 px-1">
                         {order.items.map((item, i) => (
                             <div key={i} className="flex justify-between items-center">
-                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{item.quantity} x {item.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-md bg-slate-50 flex items-center justify-center text-xs overflow-hidden">
+                                        {item.emoji}
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{item.quantity} x {item.name}</span>
+                                </div>
                                 <span className="text-[10px] font-black text-slate-900 tabular-nums">₹{item.price * item.quantity}</span>
                             </div>
                         ))}

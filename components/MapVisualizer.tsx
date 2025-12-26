@@ -1,5 +1,6 @@
+
 import React, { useEffect, useRef, useState } from 'react';
-import { Store, OrderMode } from '../types';
+import { Store, OrderMode, DriverLocationState } from '../types';
 import { getRoute } from '../services/routingService';
 
 interface MapVisualizerProps {
@@ -15,7 +16,7 @@ interface MapVisualizerProps {
   showRoute?: boolean;
   enableExternalNavigation?: boolean;
   onRequestLocation?: () => void;
-  driverLocation?: { lat: number; lng: number }; 
+  driverLocation?: DriverLocationState; 
 }
 
 export const MapVisualizer: React.FC<MapVisualizerProps> = ({ 
@@ -123,7 +124,6 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       }).addTo(mapInstanceRef.current);
     }
 
-    // Personalized User Marker with "You are here" label
     if (userLat && userLng) {
       if (!userMarkerRef.current) {
         const userIcon = L.divIcon({
@@ -169,10 +169,6 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
             accuracyCircleRef.current.setRadius(userAccuracy);
           }
       }
-
-      if (followUser && !showRoute && !selectedStore) {
-          mapInstanceRef.current.panTo([userLat, userLng], { animate: true, duration: 0.5 });
-      }
     }
 
     if (driverLocation) {
@@ -181,17 +177,15 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
                  className: 'driver-marker-live',
                  html: `
                     <div class="relative flex flex-col items-center justify-center animate-fade-in">
-                       <div class="absolute -top-12 bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-2xl shadow-2xl z-[60] border border-white/20 uppercase tracking-widest whitespace-nowrap">
-                          Partner 🛵
+                       <div class="w-14 h-14 bg-slate-900 rounded-[22px] border-[3px] border-white shadow-2xl flex items-center justify-center animate-float relative overflow-hidden">
+                          <div class="absolute inset-0 bg-emerald-500/10 animate-pulse"></div>
+                          <span class="text-3xl transform -scale-x-100 z-10">🛵</span>
                        </div>
-                       <div class="w-12 h-12 bg-white rounded-3xl border-[3px] border-brand-DEFAULT shadow-2xl flex items-center justify-center animate-float">
-                          <span class="text-2xl transform -scale-x-100">🛵</span>
-                       </div>
-                       <div class="w-2 h-2 bg-brand-DEFAULT rounded-full mt-2 animate-ping shadow-glow"></div>
+                       <div class="w-4 h-1 bg-black/10 rounded-full mt-1 blur-[1px] animate-pulse"></div>
                     </div>
                  `,
-                 iconSize: [48, 48],
-                 iconAnchor: [24, 24]
+                 iconSize: [56, 56],
+                 iconAnchor: [28, 28]
              });
              driverMarkerRef.current = L.marker([driverLocation.lat, driverLocation.lng], { 
                  icon: driverIcon, 
@@ -251,28 +245,14 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
        if (prevBoundsHash.current !== boundsHash) {
            const bounds = L.latLngBounds(routePath);
            mapInstanceRef.current.fitBounds(bounds, { 
-               padding: [80, 80], 
+               padding: [120, 120], 
                maxZoom: 17.5, 
                animate: true 
            });
            prevBoundsHash.current = boundsHash;
            setFollowUser(false);
        }
-    } else if (stores.length > 0 && userLat && userLng && !showRoute) {
-        const boundsHash = `view-${stores.length}-${userLat}-${userLng}`;
-        if (prevBoundsHash.current !== boundsHash) {
-            const allPoints = stores.map(s => L.latLng(s.lat, s.lng));
-            allPoints.push(L.latLng(userLat, userLng));
-            const bounds = L.latLngBounds(allPoints);
-            mapInstanceRef.current.fitBounds(bounds, { 
-                padding: [60, 60], 
-                maxZoom: 16,
-                animate: true
-            });
-            prevBoundsHash.current = boundsHash;
-        }
     }
-
   }, [stores, userLat, userLng, userInitial, userAccuracy, selectedStore, showRoute, mode, driverLocation, routePath, followUser, isLocating]);
 
   useEffect(() => {
@@ -282,9 +262,9 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
             const startNode = driverLocation || selectedStore;
             if (startNode) {
                 try {
-                    const points = await getRoute(startNode.lat, startNode.lng, userLat, userLng);
+                    const result = await getRoute(startNode.lat, startNode.lng, userLat, userLng);
                     if (isActive) {
-                        setRoutePath(points.length > 0 ? points : [[startNode.lat, startNode.lng], [userLat, userLng]]);
+                        setRoutePath(result.coordinates.length > 0 ? result.coordinates : [[startNode.lat, startNode.lng], [userLat, userLng]]);
                     }
                 } catch (e) {
                     if (isActive) setRoutePath([[startNode.lat, startNode.lng], [userLat, userLng]]);
@@ -296,18 +276,44 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     };
     fetchPath();
     return () => { isActive = false; };
-  }, [userLat, userLng, selectedStore?.id, driverLocation?.lat, driverLocation?.lng, showRoute]);
+  }, [userLat, userLng, selectedStore?.id, showRoute]);
 
   return (
     <div className={`relative w-full bg-slate-50 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
-      <div ref={mapContainerRef} className="w-full h-full z-0 grayscale-[0.2] transition-all duration-700" />
+      <div ref={mapContainerRef} className="w-full h-full z-0 grayscale-[0.2]" />
       
-      <div className="absolute top-4 right-4 z-[500] pointer-events-none flex flex-col gap-2">
-         <div className="bg-white/90 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white shadow-xl pointer-events-auto flex items-center gap-2">
-             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-glow"></div>
-             <span className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Precision Live</span>
-         </div>
-      </div>
+      {/* Real-time Logistics HUD */}
+      {driverLocation && (
+          <div className="absolute top-4 left-4 right-4 z-[500] pointer-events-none animate-slide-up">
+              <div className="bg-slate-900/95 backdrop-blur-xl p-4 rounded-3xl border border-white/10 shadow-2xl flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl shadow-lg">🛵</div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Courier Tracking</span>
+                            <span className="text-[13px] font-black text-white">Live Road Path</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                          <span className="block text-[14px] font-black text-white tabular-nums">
+                              {driverLocation.timeRemaining ? Math.ceil(driverLocation.timeRemaining / 60) : '--'} mins
+                          </span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                              {driverLocation.distanceRemaining ? (driverLocation.distanceRemaining / 1000).toFixed(1) : '--'} km
+                          </span>
+                      </div>
+                  </div>
+                  <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000"
+                        style={{ width: `${Math.max(10, 100 - (driverLocation.distanceRemaining ? (driverLocation.distanceRemaining / 5000) * 100 : 0))}%` }}
+                      >
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse"></div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
 
       <div className="absolute bottom-6 right-6 z-[500] pointer-events-none">
           <button 
@@ -319,7 +325,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
             {isLocating ? (
                <div className="w-6 h-6 border-[3px] border-current border-t-transparent rounded-full animate-spin"></div>
             ) : (
-               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-7 h-7 transition-transform group-hover:scale-110 ${followUser ? 'animate-pulse' : ''}`}>
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
                  <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                </svg>
             )}

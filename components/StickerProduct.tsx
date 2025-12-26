@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Product, Variant } from '../types';
+import { useStore } from '../contexts/StoreContext';
 
 interface StickerProductProps {
   product: Product;
@@ -106,6 +107,7 @@ export const StickerProduct: React.FC<StickerProductProps> = ({
         <div className={`text-6xl transform transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] emoji-3d ${count > 0 ? 'scale-110 rotate-3' : ''}`}>
           {product.emoji}
         </div>
+        
         {count > 0 && (
           <div className="absolute bottom-2.5 right-2.5 bg-emerald-500 text-white text-[10px] font-black w-6.5 h-6.5 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 animate-scale-in">
             {count}

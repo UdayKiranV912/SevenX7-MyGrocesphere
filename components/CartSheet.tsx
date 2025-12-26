@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { CartItem, DeliveryType, Store, Product } from '../types';
+import { useStore } from '../contexts/StoreContext';
 
 interface CartItemRowProps {
   item: CartItem;
@@ -30,7 +31,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({ item, onUpdateQuantity, index
        }`}
        style={{ animationDelay: `${index * 30}ms` }}
      >
-        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-lg shrink-0 border border-slate-200 shadow-sm">
+        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-lg shrink-0 border border-slate-200 shadow-sm overflow-hidden">
             {item.emoji}
         </div>
         
@@ -38,9 +39,9 @@ const CartItemRow: React.FC<CartItemRowProps> = ({ item, onUpdateQuantity, index
            <h3 className="font-bold text-slate-900 text-[10px] truncate leading-tight">{item.name}</h3>
            <div className="flex items-center gap-1.5 mt-0.5">
                <span className="text-[10px] font-black text-slate-900">₹{item.price}</span>
-               {item.selectedVariant && (
+               {item.selectedBrand && (
                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">
-                       • {item.selectedVariant.name}
+                       • {item.selectedBrand}
                    </span>
                )}
            </div>
@@ -283,7 +284,6 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
          </div>
       </div>
 
-      {/* Adjusted bottom-[60px] to align with new slim navigation bar height */}
       <div className="fixed bottom-[60px] left-0 right-0 max-w-md mx-auto z-[35] px-4 animate-slide-up">
          <div className="bg-white border border-slate-200 rounded-[20px] p-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] flex items-center gap-3">
              <button 

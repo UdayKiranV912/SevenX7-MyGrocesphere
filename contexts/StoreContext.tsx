@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
 import { MOCK_STORES } from '../constants';
@@ -69,7 +70,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearCart = useCallback(() => setCart([]), []);
 
-  // Compute nearest store for default active selection
   const nearestStore = useMemo(() => {
     if (availableStores.length === 0) return null;
     if (!user.location) return availableStores[0];
@@ -87,14 +87,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isLoading) return;
     setIsLoading(true);
     
-    // DEMO MODE: Rich Mock Data
     if (user.id === 'demo-user') {
         setAvailableStores(MOCK_STORES);
         setIsLoading(false);
         return;
     }
 
-    // REAL TIME: Supabase Registered Marts
     if (!lat || !lng) {
         setAvailableStores([]);
         setIsLoading(false);
@@ -126,19 +124,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user.location?.lat, user.location?.lng, user.isAuthenticated]);
 
-  // Ecosystem Real-time Subscriptions
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
-        // Mart Registration Watcher
         const storeChannel = supabase
             .channel('store-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => {
-                // Refresh local list when backend mart registry changes
                 loadStores(user.location?.lat, user.location?.lng);
             })
             .subscribe();
 
-        // Order & Logistics Watcher
         const orderChannel = supabase
             .channel(`customer-orders-${user.id}`)
             .on('postgres_changes', { 
@@ -198,6 +192,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addToCart = useCallback((product: Product, quantity = 1, brand?: string, price?: number, variant?: any) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id && item.selectedBrand === (brand || 'Generic') && item.selectedVariant?.name === variant?.name);
+      
       if (existing) {
         return prev.map(item => (item.id === product.id && item.selectedBrand === (brand || 'Generic')) ? { ...item, quantity: item.quantity + quantity } : item);
       }

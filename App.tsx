@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { StoreProvider, useStore } from './contexts/StoreContext';
-import { Order, DeliveryType, UserState } from './types';
+import { Order, DeliveryType, UserState, DriverLocationState } from './types';
 import { Auth } from './components/OTPVerification';
 import { CartSheet } from './components/CartSheet';
 import { PaymentGateway } from './components/PaymentGateway';
@@ -84,29 +85,34 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     orders.forEach(async (order) => {
-      // Logic for finalizing orders from Pending to Preparing
       if (order.status === 'Pending') {
-          // Both delivery and POP Pickup orders start here
           setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
       }
 
-      // Progression from Preparing
       if (order.status === 'Preparing') {
           if (order.mode === 'DELIVERY') {
               setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
           } else {
-              // Pickup orders go straight to 'Ready'
               setTimeout(() => updateOrderStatus(order.id, 'Ready'), 6000);
           }
       }
 
-      // Tracking Delivery simulation
+      // Tracking Delivery simulation based on REAL OSRM DISTANCE & TIME
       if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
           const targetLocation = user.location;
           if (!targetLocation || !order.storeLocation) return;
-          const path = await getRoute(order.storeLocation.lat, order.storeLocation.lng, targetLocation.lat, targetLocation.lng);
+          
+          const routeResult = await getRoute(order.storeLocation.lat, order.storeLocation.lng, targetLocation.lat, targetLocation.lng);
+          const path = routeResult.coordinates;
+          const totalDistance = routeResult.distance;
+          const totalDuration = routeResult.duration;
+          
+          if (path.length < 2) return;
+
           let currentNodeIndex = 0;
           let nodeProgress = 0;
+          const simulationSpeed = user.id === 'demo-user' ? 0.05 : 0.01; // Slower for real look
+
           simulationIntervals.current[order.id] = window.setInterval(() => {
             if (currentNodeIndex >= path.length - 1) {
               window.clearInterval(simulationIntervals.current[order.id]);
@@ -116,16 +122,36 @@ const AppContent: React.FC = () => {
               showToast(`Order delivered! 🛵`);
               return;
             }
-            nodeProgress += 0.15;
-            if (nodeProgress >= 1) { nodeProgress = 0; currentNodeIndex++; }
+
+            nodeProgress += simulationSpeed;
+
+            if (nodeProgress >= 1) { 
+              nodeProgress = 0; 
+              currentNodeIndex++; 
+            }
+
             if (currentNodeIndex < path.length - 1) {
               const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-              setDriverLocations(prev => ({ ...prev, [order.id]: { lat: pos[0], lng: pos[1] } }));
+              
+              // Progress ratio (0 to 1)
+              const pathProgress = (currentNodeIndex + nodeProgress) / path.length;
+              const distRem = Math.max(0, totalDistance * (1 - pathProgress));
+              const timeRem = Math.max(0, totalDuration * (1 - pathProgress));
+
+              setDriverLocations(prev => ({ 
+                ...prev, 
+                [order.id]: { 
+                  lat: pos[0], 
+                  lng: pos[1],
+                  distanceRemaining: distRem,
+                  timeRemaining: timeRem
+                } 
+              }));
             }
           }, 1000);
       }
     });
-  }, [orders, updateOrderStatus, setDriverLocations, showToast, user.location]);
+  }, [orders, updateOrderStatus, setDriverLocations, showToast, user.location, user.id]);
 
   const navigateTo = (view: typeof currentView) => {
       if (currentView === view) return;
@@ -162,7 +188,6 @@ const AppContent: React.FC = () => {
   const finalizeOrder = async (paymentMethodString: string) => {
     if (!pendingOrderDetails) return;
     const itemsTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    // POP orders start as UNPAID (PENDING) if it's "Pay at Store"
     const isPop = paymentMethodString.includes('POP');
     
     const order: Order = {

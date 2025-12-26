@@ -33,8 +33,8 @@ export interface AdCampaign {
   themeColor: 'emerald' | 'blue' | 'orange' | 'purple' | 'amber';
   tag?: string;
   icon?: string;
-  internalStoreId?: string; // If set, clicking "Shop" will switch active store
-  internalView?: 'SHOP' | 'ORDERS' | 'CART'; // Navigation target within app
+  internalStoreId?: string; 
+  internalView?: 'SHOP' | 'ORDERS' | 'CART'; 
 }
 
 export interface Store {
@@ -83,7 +83,7 @@ export interface UserState {
   address?: string;
   neighborhood?: string;
   location: { lat: number; lng: number } | null;
-  accuracy?: number; // Accuracy in meters
+  accuracy?: number; 
   savedCards?: SavedCard[];
   role?: 'customer' | 'store_owner' | 'delivery_partner' | 'admin';
   verificationStatus?: 'pending' | 'verified' | 'rejected';
@@ -101,6 +101,14 @@ export interface PaymentSplit {
   adminUpi?: string;
   deliveryFee: number; 
   driverUpi?: string;
+}
+
+export interface DriverLocationState {
+  lat: number;
+  lng: number;
+  bearing?: number;
+  distanceRemaining?: number; // in meters
+  timeRemaining?: number; // in seconds
 }
 
 export interface Order {
