@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
 import { MOCK_STORES } from '../constants';
 import { fetchVerifiedStores, fetchStoreInventory } from '../services/storeService';
+import { fetchRealStores } from '../services/overpassService';
 import { supabase } from '../services/supabase';
 
 interface StoreContextType {
@@ -87,9 +88,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isLoading) return;
     setIsLoading(true);
     
+    // Fallback coordinates for demo if GPS fails or is unavailable
+    const searchLat = lat || 12.9716;
+    const searchLng = lng || 77.5946;
+
     if (user.id === 'demo-user') {
-        setAvailableStores(MOCK_STORES);
-        setIsLoading(false);
+        try {
+            // Demo mode now pulls real-time nearby data from OSM via Overpass API
+            const realNearbyStores = await fetchRealStores(searchLat, searchLng);
+            if (realNearbyStores.length > 0) {
+                setAvailableStores(realNearbyStores);
+            } else {
+                // If Overpass fails or returns nothing, fallback to hardcoded mock stores
+                setAvailableStores(MOCK_STORES);
+            }
+        } catch (e) {
+            console.error("Demo store discovery failed:", e);
+            setAvailableStores(MOCK_STORES);
+        } finally {
+            setIsLoading(false);
+        }
         return;
     }
 

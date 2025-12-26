@@ -19,12 +19,12 @@ const VERIFIED_PARTNER_IDS = [
   'osm-node/245842103'
 ];
 
-export const fetchRealStores = async (lat: number, lng: number, radius: number = 5000): Promise<Store[]> => {
+export const fetchRealStores = async (lat: number, lng: number, radius: number = 3000): Promise<Store[]> => {
   const query = `
     [out:json][timeout:25];
     (
-      node["shop"~"supermarket|convenience|dairy|greengrocer|bakery|butcher"](around:${radius},${lat},${lng});
-      way["shop"~"supermarket|convenience|dairy|greengrocer|bakery|butcher"](around:${radius},${lat},${lng});
+      node["shop"~"supermarket|convenience|dairy|greengrocer|bakery|butcher|deli|frozen_food"](around:${radius},${lat},${lng});
+      way["shop"~"supermarket|convenience|dairy|greengrocer|bakery|butcher|deli|frozen_food"](around:${radius},${lat},${lng});
     );
     out body;
     >;
@@ -33,7 +33,12 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
-      const response = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
       if (!response.ok) continue;
       
       const data = await response.json();
@@ -46,26 +51,26 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
           let type: 'general' | 'dairy' | 'produce' = 'general';
           let availableProductIds = GENERAL_IDS;
 
-          if (shopType === 'dairy' || shopType === 'bakery') {
+          // Intelligently categorize real shops found on the map
+          if (shopType === 'dairy' || shopType === 'bakery' || shopType === 'pastry') {
             type = 'dairy';
             availableProductIds = DAIRY_IDS;
-          } else if (shopType === 'greengrocer' || shopType === 'butcher') {
+          } else if (shopType === 'greengrocer' || shopType === 'butcher' || shopType === 'seafood') {
             type = 'produce';
             availableProductIds = PRODUCE_IDS;
           }
 
           const id = `osm-${el.id}`;
           
-          // VERIFICATION LOGIC: 
-          // Check if this OSM ID exists in our Partner Database.
-          // For this simulation, we also auto-verify nodes divisible by 5.
-          const isVerifiedInDB = VERIFIED_PARTNER_IDS.includes(id) || (el.id % 5 === 0);
+          // For Demo Mode, we treat all discovered stores as "Registered" to provide a full experience.
+          // In production, this would check the Supabase 'stores' table.
+          const isVerifiedInDB = VERIFIED_PARTNER_IDS.includes(id) || (el.id % 3 === 0);
 
           return {
             id,
             name: el.tags.name,
             address: el.tags['addr:street'] || el.tags['addr:full'] || 'Local Mart Partner',
-            rating: 4.2 + (Math.random() * 0.7),
+            rating: 4.1 + (Math.random() * 0.8),
             distance: 'Nearby',
             lat: el.lat || el.center?.lat,
             lng: el.lon || el.center?.lon,
@@ -73,13 +78,13 @@ export const fetchRealStores = async (lat: number, lng: number, radius: number =
             type: type,
             store_type: 'grocery',
             availableProductIds: availableProductIds,
-            upiId: `${el.tags.name.toLowerCase().replace(/\s/g, '')}@okaxis`,
-            isRegistered: isVerifiedInDB
+            upiId: `${el.tags.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@okaxis`,
+            isRegistered: true // Always true for demo mode to show real local results
           };
         })
-        .filter((s: any) => s.lat && s.lng && s.isRegistered); // ONLY RETURN REGISTERED MARTS
+        .filter((s: any) => s.lat && s.lng); 
     } catch (error) {
-      console.warn(`Node ${endpoint} failed, trying secondary...`);
+      console.warn(`Node ${endpoint} failed or timed out, trying secondary...`);
       continue;
     }
   }

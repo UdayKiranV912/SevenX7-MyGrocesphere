@@ -48,24 +48,44 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   const prevBoundsHash = useRef<string>("");
   const [routePath, setRoutePath] = useState<[number, number][]>([]);
 
+  // Journey Memory to calculate true progress %
+  const journeyStartDistanceRef = useRef<number | null>(null);
+
+  // Reset journey start distance when a new tracking session begins or ends
+  useEffect(() => {
+    if (!driverLocation) {
+        journeyStartDistanceRef.current = null;
+    }
+  }, [driverLocation]);
+
   // DYNAMIC LOGISTICS CALCULATION
-  // We calculate distance on-the-fly if not provided by parent state
   const logisticsMetrics = useMemo(() => {
     if (!driverLocation || userLat === null || userLng === null) return null;
     
-    // If the simulation/backend provided values, use them. 
-    // Otherwise, calculate real-time straight-line distance as fallback.
-    const distance = driverLocation.distanceRemaining ?? calculateHaversineDistance(
+    // Calculate current distance
+    const currentDistance = driverLocation.distanceRemaining ?? calculateHaversineDistance(
         driverLocation.lat, driverLocation.lng, userLat, userLng
     );
     
-    // Estimate time (1.2 multiplier for traffic)
-    const time = driverLocation.timeRemaining ?? ((distance / AVG_DELIVERY_SPEED_MPS) * 1.2);
+    // Initialize journey total distance if not set
+    if (journeyStartDistanceRef.current === null) {
+        journeyStartDistanceRef.current = currentDistance;
+    }
+    
+    // Total journey length (safety check: at least current distance)
+    const totalDistance = Math.max(journeyStartDistanceRef.current, currentDistance, 10);
+    
+    // Calculate Progress % (0 to 100)
+    // 100% means currentDistance is 0
+    const progressPercent = Math.min(98, Math.max(5, (1 - (currentDistance / totalDistance)) * 100));
+    
+    // Estimate time (1.2 multiplier for traffic factor)
+    const time = driverLocation.timeRemaining ?? ((currentDistance / AVG_DELIVERY_SPEED_MPS) * 1.2);
     
     return {
-        distanceKm: (distance / 1000).toFixed(1),
+        distanceKm: (currentDistance / 1000).toFixed(1),
         timeMins: Math.ceil(time / 60),
-        progress: Math.max(5, Math.min(100, (1 - (distance / 5000)) * 100))
+        progress: progressPercent
     };
   }, [driverLocation, userLat, userLng]);
 
@@ -303,6 +323,11 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     <div className={`relative w-full bg-slate-50 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full z-0 grayscale-[0.2]" />
       
+      {/* Map Attribution */}
+      <div className="absolute bottom-3 left-6 z-[400] bg-white/40 backdrop-blur-[2px] px-2 py-0.5 rounded-md">
+         <span className="text-[7px] font-black text-slate-500/80 uppercase tracking-widest leading-none select-none">© OpenStreetMap</span>
+      </div>
+
       {/* Real-time Logistics HUD */}
       {logisticsMetrics && (
           <div className="absolute top-4 left-4 right-4 z-[500] pointer-events-none animate-slide-up">
@@ -332,10 +357,10 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
                   </div>
                   <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
                       <div 
-                        className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000 ease-linear"
+                        className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                         style={{ width: `${logisticsMetrics.progress}%` }}
                       >
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse"></div>
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/40 animate-pulse"></div>
                       </div>
                   </div>
               </div>

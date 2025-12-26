@@ -104,8 +104,6 @@ const AppContent: React.FC = () => {
           
           const routeResult = await getRoute(order.storeLocation.lat, order.storeLocation.lng, targetLocation.lat, targetLocation.lng);
           const path = routeResult.coordinates;
-          const totalDistance = routeResult.distance;
-          const totalDuration = routeResult.duration;
           
           if (path.length < 2) return;
 
@@ -136,7 +134,7 @@ const AppContent: React.FC = () => {
             if (currentNodeIndex < path.length - 1) {
               const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
               
-              // Calculate remaining metrics based on the current position relative to goal
+              // Recalculate physical distance to target point
               const distRem = calculateHaversineDistance(pos[0], pos[1], targetLocation.lat, targetLocation.lng);
               const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
 
