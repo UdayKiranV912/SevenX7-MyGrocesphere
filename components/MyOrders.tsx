@@ -32,7 +32,6 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
   const handleFinalizePickup = (orderId: string) => {
     if (confirm("Have you paid at the store and received your items?")) {
         updateOrderStatus(orderId, 'Picked Up');
-        // Update payment status locally
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, paymentStatus: 'PAID' } : o));
     }
   };
@@ -107,7 +106,6 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
 
             {isExpanded && (
                 <div className="mt-4 pt-4 border-t border-slate-100 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                    {/* POP PICKUP UI */}
                     {isReadyForPickup && isPop && (
                         <div className="bg-emerald-50 rounded-3xl p-5 border-2 border-dashed border-emerald-200 mb-6 text-center space-y-4">
                             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl mx-auto shadow-sm border border-emerald-100">🏪</div>
@@ -140,6 +138,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                                     selectedStore={mapStore}
                                     userLat={userLocation?.lat || 0}
                                     userLng={userLocation?.lng || 0}
+                                    userInitial={user.name?.charAt(0) || '👤'}
                                     userAccuracy={user.accuracy}
                                     mode={order.mode}
                                     onSelectStore={() => {}}

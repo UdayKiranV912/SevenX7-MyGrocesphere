@@ -69,6 +69,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearCart = useCallback(() => setCart([]), []);
 
+  // Compute nearest store for default active selection
   const nearestStore = useMemo(() => {
     if (availableStores.length === 0) return null;
     if (!user.location) return availableStores[0];
@@ -83,16 +84,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const activeStore = manualStore || nearestStore;
 
   const loadStores = useCallback(async (lat?: number, lng?: number) => {
+    if (isLoading) return;
     setIsLoading(true);
     
-    // DEMO MODE: Load all Mock Bengaluru stores
+    // DEMO MODE: Rich Mock Data
     if (user.id === 'demo-user') {
         setAvailableStores(MOCK_STORES);
         setIsLoading(false);
         return;
     }
 
-    // REAL TIME: Load only DB-registered stores
+    // REAL TIME: Supabase Registered Marts
     if (!lat || !lng) {
         setAvailableStores([]);
         setIsLoading(false);
@@ -111,42 +113,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setAvailableStores(hydratedStores);
         }
     } catch (e) {
-        console.error("Store discovery failed", e);
+        console.error("Marts sync error:", e);
         setAvailableStores([]);
     } finally {
         setIsLoading(false);
     }
-  }, [user.id]);
+  }, [user.id, isLoading]);
 
   useEffect(() => {
     if (user.isAuthenticated) {
         loadStores(user.location?.lat, user.location?.lng);
     }
-  }, [user.location, user.isAuthenticated, loadStores]);
+  }, [user.location?.lat, user.location?.lng, user.isAuthenticated]);
 
-  // Real-time synchronization for Registered Stores & Orders
+  // Ecosystem Real-time Subscriptions
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
-        // Listen for store registration updates
+        // Mart Registration Watcher
         const storeChannel = supabase
-            .channel('public:stores')
+            .channel('store-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => {
+                // Refresh local list when backend mart registry changes
                 loadStores(user.location?.lat, user.location?.lng);
             })
             .subscribe();
 
-        // Listen for order status updates
+        // Order & Logistics Watcher
         const orderChannel = supabase
-            .channel(`public:orders:customer:${user.id}`)
+            .channel(`customer-orders-${user.id}`)
             .on('postgres_changes', { 
                 event: 'UPDATE', 
                 schema: 'public', 
                 table: 'orders', 
                 filter: `customer_id=eq.${user.id}` 
             }, (payload) => {
-                const updatedOrder = payload.new as any;
-                setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, status: updatedOrder.status } : o));
-                showToast(`Update: Order ${updatedOrder.status}`);
+                const updated = payload.new as any;
+                setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, status: updated.status } : o));
+                showToast(`Logistics Update: Order is ${updated.status}`);
             })
             .subscribe();
 
@@ -158,7 +161,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [user.isAuthenticated, user.id, user.location, loadStores, showToast]);
 
   const detectLocation = useCallback(async () => {
-    if (!navigator.geolocation) { showToast("GPS not supported"); return; }
+    if (!navigator.geolocation) { showToast("GPS Service Unavailable"); return; }
     setIsLoading(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -166,7 +169,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
-          const neighborhood = data.address?.suburb || data.address?.neighbourhood || 'Nearby';
+          const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || 'Nearby Area';
           setUser(prev => ({ 
             ...prev, 
             location: { lat: latitude, lng: longitude },
@@ -185,10 +188,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (user.id === 'demo-user') {
             setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
         } else {
-            showToast("Precision Location Denied. Using network defaults."); 
+            showToast("Precision Location Denied. Using fallback."); 
         }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, [showToast, user.id]);
 
@@ -204,7 +207,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         storeId: activeStore?.id || 'def', storeName: activeStore?.name || 'Store', storeType: activeStore?.type || 'general'
       }];
     });
-    showToast(`${product.name} added`);
+    showToast(`Added ${product.name}`);
   }, [activeStore, showToast]);
 
   const updateQuantity = useCallback((productId: string, delta: number) => {
@@ -218,28 +221,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addOrder = useCallback(async (order: Order) => {
       if (user.id && user.id !== 'demo-user') {
-          const { data: orderData, error: orderError } = await supabase.from('orders').insert({
+          const { data: orderData, error } = await supabase.from('orders').insert({
               customer_id: user.id,
               store_id: order.items[0].storeId,
               status: 'placed',
               items: order.items,
               total_amount: order.total,
-              delivery_address: order.deliveryAddress
+              delivery_address: order.deliveryAddress,
+              order_mode: order.mode
           }).select().single();
 
-          if (orderError) {
-              showToast("Failed to secure order. Retry later.");
+          if (error) {
+              showToast("Ecosystem Sync Failed. Check Connection.");
               return;
           }
 
           if (orderData) {
-              const itemsToInsert = order.items.map(item => ({
+              const items = order.items.map(item => ({
                   order_id: orderData.id,
                   product_id: item.originalProductId,
                   quantity: item.quantity,
                   unit_price: item.price
               }));
-              await supabase.from('order_items').insert(itemsToInsert);
+              await supabase.from('order_items').insert(items);
               order.id = orderData.id;
           }
       }

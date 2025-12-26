@@ -69,7 +69,18 @@ export const ShopPage: React.FC = () => {
       </div>
 
       <div className="relative h-[240px] mb-4 overflow-hidden border-b border-slate-100 isolate bg-white">
-        <MapVisualizer stores={availableStores} userLat={user.location?.lat || null} userLng={user.location?.lng || null} userAccuracy={user.accuracy} selectedStore={activeStore} onSelectStore={setActiveStore} mode="DELIVERY" className="h-full" onRequestLocation={detectLocation}/>
+        <MapVisualizer 
+          stores={availableStores} 
+          userLat={user.location?.lat || null} 
+          userLng={user.location?.lng || null} 
+          userInitial={user.name?.charAt(0) || '👤'}
+          userAccuracy={user.accuracy} 
+          selectedStore={activeStore} 
+          onSelectStore={setActiveStore} 
+          mode="DELIVERY" 
+          className="h-full" 
+          onRequestLocation={detectLocation}
+        />
         {activeStore && (
             <div className="absolute top-4 left-4 z-[40] animate-slide-up">
               <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-3">
