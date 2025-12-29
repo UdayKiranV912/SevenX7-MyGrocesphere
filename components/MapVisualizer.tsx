@@ -20,7 +20,6 @@ interface MapVisualizerProps {
   driverLocation?: DriverLocationState; 
 }
 
-// Fixed the incomplete component by adding the missing logic and return statement
 export const MapVisualizer: React.FC<MapVisualizerProps> = ({ 
   stores, 
   userLat, 
@@ -200,14 +199,13 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
              });
              driverMarkerRef.current = L.marker([driverLocation.lat, driverLocation.lng], { 
                  icon: driverIcon,
-                 zIndexOffset: 1500
+                 zIndexOffset: 2000
              }).addTo(mapInstanceRef.current);
         } else {
              driverMarkerRef.current.setLatLng([driverLocation.lat, driverLocation.lng]);
         }
     }
 
-    // Stores markers
     markersRef.current.forEach(m => mapInstanceRef.current.removeLayer(m));
     markersRef.current = [];
 
@@ -231,15 +229,17 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
         markersRef.current.push(marker);
     });
 
-    // Auto-bounds logic
-    const boundsHash = JSON.stringify(stores.map(s => s.id)) + (selectedStore?.id || "") + (userLat || 0) + (userLng || 0);
-    if (boundsHash !== prevBoundsHash.current && stores.length > 0 && mapInstanceRef.current) {
+    const boundsHash = JSON.stringify(stores.map(s => s.id)) + (selectedStore?.id || "") + (userLat || 0) + (userLng || 0) + (driverLocation?.lat || 0);
+    if (boundsHash !== prevBoundsHash.current && (stores.length > 0 || driverLocation) && mapInstanceRef.current) {
         const points: [number, number][] = stores.map(s => [s.lat, s.lng]);
         if (userLat && userLng) points.push([userLat, userLng]);
+        if (driverLocation) points.push([driverLocation.lat, driverLocation.lng]);
         
-        const bounds = L.latLngBounds(points);
-        mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], animate: true });
-        prevBoundsHash.current = boundsHash;
+        if (points.length > 0) {
+          const bounds = L.latLngBounds(points);
+          mapInstanceRef.current.fitBounds(bounds, { padding: [60, 60], animate: true });
+          prevBoundsHash.current = boundsHash;
+        }
     }
   }, [stores, userLat, userLng, selectedStore, isLiveGPS, userInitial, userAccuracy, driverLocation, onSelectStore, isLocating]);
 
@@ -261,19 +261,21 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
             if (routeLineGlowRef.current) mapInstanceRef.current.removeLayer(routeLineGlowRef.current);
             if (routeLineRef.current) mapInstanceRef.current.removeLayer(routeLineRef.current);
 
+            // Glowing underlay
             routeLineGlowRef.current = L.polyline(route.coordinates, {
                 color: '#10b981',
-                weight: 8,
-                opacity: 0.15,
+                weight: 10,
+                opacity: 0.1,
                 lineCap: 'round',
                 lineJoin: 'round'
             }).addTo(mapInstanceRef.current);
 
+            // Crisp tracking line
             routeLineRef.current = L.polyline(route.coordinates, {
                 color: '#10b981',
                 weight: 4,
                 opacity: 0.8,
-                dashArray: '1, 12',
+                dashArray: '1, 10',
                 lineCap: 'round',
                 lineJoin: 'round'
             }).addTo(mapInstanceRef.current);
@@ -286,42 +288,41 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   }, [selectedStore, userLat, userLng, showRoute, driverLocation]);
 
   return (
-    <div className={`relative ${className} bg-slate-100 overflow-hidden`}>
-      <div ref={mapContainerRef} className="w-full h-full" />
+    <div className={`relative ${className} bg-slate-100 overflow-hidden isolate`}>
+      <div ref={mapContainerRef} className="w-full h-full z-0" />
       
+      {/* OSM Attribution - Bottom Left */}
+      <div className="absolute bottom-2 left-4 z-[400] pointer-events-none">
+          <div className="bg-white/70 backdrop-blur-sm px-2 py-0.5 rounded-full border border-white/20 shadow-sm flex items-center gap-1.5">
+              <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">© OpenStreetMap contributors</span>
+          </div>
+      </div>
+
       {/* Map Controls */}
-      <div className="absolute bottom-4 right-4 z-40 flex flex-col gap-2">
+      <div className="absolute bottom-6 right-6 z-[400] flex flex-col gap-2">
          <button 
            onClick={handleRecenter}
-           className={`w-11 h-11 bg-white rounded-2xl shadow-xl flex items-center justify-center transition-all border border-slate-100 active:scale-90 ${followUser ? 'text-emerald-500' : 'text-slate-400'}`}
+           className={`w-12 h-12 bg-white rounded-2xl shadow-2xl flex items-center justify-center transition-all border border-slate-100 active:scale-90 ${followUser ? 'text-emerald-500' : 'text-slate-400'}`}
          >
            {isLocating ? (
               <div className="w-5 h-5 border-2 border-emerald-100 border-t-emerald-500 rounded-full animate-spin" />
            ) : (
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
              </svg>
            )}
          </button>
-         
-         {enableExternalNavigation && selectedStore && (
-           <button 
-             onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedStore.lat},${selectedStore.lng}`, '_blank')}
-             className="w-11 h-11 bg-slate-900 text-white rounded-2xl shadow-xl flex items-center justify-center active:scale-90 transition-transform"
-           >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-               <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-             </svg>
-           </button>
-         )}
       </div>
 
-      {/* Accuracy Legend for Live GPS */}
-      {isLiveGPS && userAccuracy && userAccuracy < 50 && (
-          <div className="absolute top-4 right-4 z-[40] pointer-events-none animate-fade-in">
-              <div className="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-emerald-100 shadow-sm flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                  <span className="text-[7px] font-black text-slate-900 uppercase tracking-widest leading-none">High precision: {Math.round(userAccuracy)}m</span>
+      {/* Precision Accuracy Indicator */}
+      {isLiveGPS && userAccuracy && (
+          <div className="absolute top-4 right-4 z-[400] pointer-events-none animate-fade-in">
+              <div className="bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${userAccuracy < 30 ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`} />
+                  <div className="flex flex-col">
+                    <span className="text-[7px] font-black text-white/50 uppercase tracking-[0.2em] leading-none">GPS Fix</span>
+                    <span className="text-[9px] font-black text-white uppercase tracking-widest mt-0.5">±{Math.round(userAccuracy)}m Precision</span>
+                  </div>
               </div>
           </div>
       )}
