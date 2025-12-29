@@ -20,6 +20,7 @@ interface MapVisualizerProps {
   driverLocation?: DriverLocationState; 
 }
 
+// Fixed the incomplete component by adding the missing logic and return statement
 export const MapVisualizer: React.FC<MapVisualizerProps> = ({ 
   stores, 
   userLat, 
@@ -43,12 +44,12 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   const accuracyCircleRef = useRef<any>(null);
   const driverMarkerRef = useRef<any>(null);
   const routeLineRef = useRef<any>(null);
+  const routeLineGlowRef = useRef<any>(null);
   
   const [isLocating, setIsLocating] = useState(false);
   const [followUser, setFollowUser] = useState(true);
   
   const prevBoundsHash = useRef<string>("");
-  const [routePath, setRoutePath] = useState<[number, number][]>([]);
 
   const getMarkerHtml = (type: Store['type'], isSelected: boolean, storeName: string) => {
     const emoji = type === 'produce' ? '🥦' : type === 'dairy' ? '🥛' : '🏪';
@@ -198,118 +199,132 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
                  iconAnchor: [28, 28]
              });
              driverMarkerRef.current = L.marker([driverLocation.lat, driverLocation.lng], { 
-                 icon: driverIcon, 
-                 zIndexOffset: 10000 
+                 icon: driverIcon,
+                 zIndexOffset: 1500
              }).addTo(mapInstanceRef.current);
         } else {
              driverMarkerRef.current.setLatLng([driverLocation.lat, driverLocation.lng]);
         }
     }
 
+    // Stores markers
     markersRef.current.forEach(m => mapInstanceRef.current.removeLayer(m));
     markersRef.current = [];
 
     stores.forEach(store => {
-      const isSelected = selectedStore?.id === store.id;
-      const icon = L.divIcon({
-        className: 'custom-store-pin',
-        html: getMarkerHtml(store.type, isSelected, store.name),
-        iconSize: isSelected ? [56, 70] : [36, 36],
-        iconAnchor: isSelected ? [28, 70] : [18, 18] 
-      });
-
-      const marker = L.marker([store.lat, store.lng], { 
-          icon, 
-          zIndexOffset: isSelected ? 900 : 100 
-      }).addTo(mapInstanceRef.current);
-      
-      marker.on('click', () => {
-        onSelectStore(store);
-        prevBoundsHash.current = "";
-        setFollowUser(false);
-        mapInstanceRef.current.flyTo([store.lat, store.lng], 18, { 
-            animate: true, 
-            duration: 1,
-            padding: [50, 50]
+        const isSelected = selectedStore?.id === store.id;
+        const icon = L.divIcon({
+            className: 'custom-store-marker',
+            html: getMarkerHtml(store.type, isSelected, store.name),
+            iconSize: isSelected ? [60, 60] : [40, 40],
+            iconAnchor: isSelected ? [30, 45] : [20, 20]
         });
-      });
-      markersRef.current.push(marker);
+
+        const marker = L.marker([store.lat, store.lng], { 
+            icon, 
+            zIndexOffset: isSelected ? 1000 : 100 
+        }).on('click', (e: any) => {
+            L.DomEvent.stopPropagation(e);
+            onSelectStore(store);
+        }).addTo(mapInstanceRef.current);
+
+        markersRef.current.push(marker);
     });
 
-    if (routeLineRef.current) {
-      mapInstanceRef.current.removeLayer(routeLineRef.current);
-      routeLineRef.current = null;
+    // Auto-bounds logic
+    const boundsHash = JSON.stringify(stores.map(s => s.id)) + (selectedStore?.id || "") + (userLat || 0) + (userLng || 0);
+    if (boundsHash !== prevBoundsHash.current && stores.length > 0 && mapInstanceRef.current) {
+        const points: [number, number][] = stores.map(s => [s.lat, s.lng]);
+        if (userLat && userLng) points.push([userLat, userLng]);
+        
+        const bounds = L.latLngBounds(points);
+        mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], animate: true });
+        prevBoundsHash.current = boundsHash;
     }
-
-    if (routePath.length > 0) {
-       routeLineRef.current = L.polyline(routePath, {
-         color: '#10b981',
-         weight: 5,
-         opacity: 0.8,
-         lineCap: 'round',
-         lineJoin: 'round',
-         dashArray: '1, 12'
-       }).addTo(mapInstanceRef.current);
-
-       const boundsHash = `route-${routePath[0][0]}-${routePath[routePath.length-1][0]}-${driverLocation?.lat}`;
-       if (prevBoundsHash.current !== boundsHash) {
-           const bounds = L.latLngBounds(routePath);
-           if (driverLocation) bounds.extend([driverLocation.lat, driverLocation.lng]);
-           if (userLat && userLng) bounds.extend([userLat, userLng]);
-           
-           mapInstanceRef.current.flyToBounds(bounds, { 
-               padding: [80, 80], 
-               maxZoom: 17, 
-               animate: true,
-               duration: 1.5
-           });
-           prevBoundsHash.current = boundsHash;
-       }
-    }
-  }, [stores, userLat, userLng, userInitial, userAccuracy, isLiveGPS, selectedStore, showRoute, mode, driverLocation, routePath, followUser, isLocating]);
+  }, [stores, userLat, userLng, selectedStore, isLiveGPS, userInitial, userAccuracy, driverLocation, onSelectStore, isLocating]);
 
   useEffect(() => {
-    let isActive = true;
-    const fetchPath = async () => {
-        if (showRoute && userLat && userLng) {
-            const startNode = driverLocation || selectedStore;
-            if (startNode) {
-                try {
-                    const result = await getRoute(startNode.lat, startNode.lng, userLat, userLng);
-                    if (isActive) {
-                        setRoutePath(result.coordinates.length > 0 ? result.coordinates : [[startNode.lat, startNode.lng], [userLat, userLng]]);
-                    }
-                } catch (e) {
-                    if (isActive) setRoutePath([[startNode.lat, startNode.lng], [userLat, userLng]]);
-                }
-            }
-        } else if (isActive) {
-            setRoutePath([]);
+    const L = (window as any).L;
+    if (!L || !mapInstanceRef.current || !showRoute) {
+        if (routeLineRef.current) mapInstanceRef.current.removeLayer(routeLineRef.current);
+        if (routeLineGlowRef.current) mapInstanceRef.current.removeLayer(routeLineGlowRef.current);
+        return;
+    }
+
+    const drawRoute = async () => {
+        const start = driverLocation ? [driverLocation.lat, driverLocation.lng] : (selectedStore ? [selectedStore.lat, selectedStore.lng] : null);
+        if (!start || !userLat || !userLng) return;
+
+        try {
+            const route = await getRoute(start[0], start[1], userLat, userLng);
+            
+            if (routeLineGlowRef.current) mapInstanceRef.current.removeLayer(routeLineGlowRef.current);
+            if (routeLineRef.current) mapInstanceRef.current.removeLayer(routeLineRef.current);
+
+            routeLineGlowRef.current = L.polyline(route.coordinates, {
+                color: '#10b981',
+                weight: 8,
+                opacity: 0.15,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(mapInstanceRef.current);
+
+            routeLineRef.current = L.polyline(route.coordinates, {
+                color: '#10b981',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '1, 12',
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(mapInstanceRef.current);
+        } catch (e) {
+            console.error("Route drawing failed", e);
         }
     };
-    fetchPath();
-    return () => { isActive = false; };
-  }, [userLat, userLng, selectedStore?.id, showRoute]);
+
+    drawRoute();
+  }, [selectedStore, userLat, userLng, showRoute, driverLocation]);
 
   return (
-    <div className={`relative w-full bg-slate-50 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
-      <div ref={mapContainerRef} className="w-full h-full z-0 grayscale-[0.2]" />
-      <div className="absolute bottom-6 right-6 z-[500] pointer-events-none">
-          <button 
-            onClick={handleRecenter}
-            className={`w-12 h-12 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center transition-all active:scale-90 border-2 pointer-events-auto group ${
-                followUser ? 'bg-slate-900 text-white border-slate-700' : 'bg-white/90 text-slate-900 border-white'
-            }`}
-          >
-            {isLocating ? (
-               <div className="w-5 h-5 border-[3px] border-current border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                 <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-               </svg>
-            )}
-          </button>
+    <div className={`relative ${className} bg-slate-100 overflow-hidden`}>
+      <div ref={mapContainerRef} className="w-full h-full" />
+      
+      {/* Map Controls */}
+      <div className="absolute bottom-4 right-4 z-40 flex flex-col gap-2">
+         <button 
+           onClick={handleRecenter}
+           className={`w-11 h-11 bg-white rounded-2xl shadow-xl flex items-center justify-center transition-all border border-slate-100 active:scale-90 ${followUser ? 'text-emerald-500' : 'text-slate-400'}`}
+         >
+           {isLocating ? (
+              <div className="w-5 h-5 border-2 border-emerald-100 border-t-emerald-500 rounded-full animate-spin" />
+           ) : (
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+               <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+             </svg>
+           )}
+         </button>
+         
+         {enableExternalNavigation && selectedStore && (
+           <button 
+             onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedStore.lat},${selectedStore.lng}`, '_blank')}
+             className="w-11 h-11 bg-slate-900 text-white rounded-2xl shadow-xl flex items-center justify-center active:scale-90 transition-transform"
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+               <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+             </svg>
+           </button>
+         )}
       </div>
+
+      {/* Accuracy Legend for Live GPS */}
+      {isLiveGPS && userAccuracy && userAccuracy < 50 && (
+          <div className="absolute top-4 right-4 z-[40] pointer-events-none animate-fade-in">
+              <div className="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-emerald-100 shadow-sm flex items-center gap-2">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  <span className="text-[7px] font-black text-slate-900 uppercase tracking-widest leading-none">High precision: {Math.round(userAccuracy)}m</span>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
