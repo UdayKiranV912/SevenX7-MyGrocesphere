@@ -50,40 +50,6 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   const prevBoundsHash = useRef<string>("");
   const [routePath, setRoutePath] = useState<[number, number][]>([]);
 
-  // Journey Memory to calculate true progress %
-  const journeyStartDistanceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (driverLocation && userLat !== null && userLng !== null) {
-        if (journeyStartDistanceRef.current === null) {
-            const initialDist = driverLocation.distanceRemaining ?? calculateHaversineDistance(
-                driverLocation.lat, driverLocation.lng, userLat, userLng
-            );
-            journeyStartDistanceRef.current = Math.max(initialDist, 100); 
-        }
-    } else {
-        journeyStartDistanceRef.current = null;
-    }
-  }, [driverLocation, userLat, userLng]);
-
-  const logisticsMetrics = useMemo(() => {
-    if (!driverLocation || userLat === null || userLng === null || journeyStartDistanceRef.current === null) return null;
-    
-    const currentDistance = driverLocation.distanceRemaining ?? calculateHaversineDistance(
-        driverLocation.lat, driverLocation.lng, userLat, userLng
-    );
-    
-    const totalDistance = journeyStartDistanceRef.current;
-    const progressPercent = Math.min(98, Math.max(5, (1 - (currentDistance / totalDistance)) * 100));
-    const time = driverLocation.timeRemaining ?? ((currentDistance / AVG_DELIVERY_SPEED_MPS) * 1.2);
-    
-    return {
-        distanceKm: (currentDistance / 1000).toFixed(1),
-        timeMins: Math.ceil(time / 60),
-        progress: progressPercent
-    };
-  }, [driverLocation, userLat, userLng]);
-
   const getMarkerHtml = (type: Store['type'], isSelected: boolean, storeName: string) => {
     const emoji = type === 'produce' ? '🥦' : type === 'dairy' ? '🥛' : '🏪';
     const bgColor = type === 'produce' ? 'bg-emerald-500' : type === 'dairy' ? 'bg-blue-500' : 'bg-slate-900';
@@ -328,48 +294,6 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   return (
     <div className={`relative w-full bg-slate-50 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full z-0 grayscale-[0.2]" />
-      
-      {/* Optimized Real-time Logistics HUD */}
-      {logisticsMetrics && (
-          <div className="absolute top-4 left-4 right-4 z-[500] pointer-events-none animate-slide-up">
-              <div className="bg-white/90 backdrop-blur-2xl p-4 rounded-[24px] border border-white shadow-2xl flex flex-col gap-3 overflow-hidden">
-                  <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-xl shadow-lg relative border border-white/10">
-                            🛵
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white animate-pulse"></div>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[14px] font-black text-slate-900 leading-none">Arriving in {logisticsMetrics.timeMins}m</span>
-                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none mt-1.5 flex items-center gap-1.5">
-                                <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping"></span> Live Transit
-                            </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                          <span className="text-[12px] font-black text-slate-900 tabular-nums block leading-none">{logisticsMetrics.distanceKm} km</span>
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mt-1">Remaining</span>
-                      </div>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                      <div className="relative h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-                            style={{ width: `${logisticsMetrics.progress}%` }}
-                          >
-                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer"></div>
-                          </div>
-                      </div>
-                      <div className="flex justify-between">
-                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Store</span>
-                          <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest">Destination</span>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      )}
-
       <div className="absolute bottom-6 right-6 z-[500] pointer-events-none">
           <button 
             onClick={handleRecenter}

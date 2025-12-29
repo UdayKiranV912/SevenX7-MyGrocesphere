@@ -100,7 +100,7 @@ export const ShopPage: React.FC = () => {
 
       <div className="mb-8">
         <div className="px-5 mb-3 flex items-center justify-between">
-            <h2 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Marts Department</h2>
+            <h2 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Categories</h2>
             <div className="h-[1px] flex-1 bg-slate-100 ml-4"></div>
         </div>
         <div className="overflow-x-auto hide-scrollbar px-4 flex gap-3">

@@ -46,6 +46,33 @@ const AppContent: React.FC = () => {
   const watchIdRef = useRef<number | null>(null);
   const simulationIntervals = useRef<Record<string, number>>({});
 
+  // Sync Current View with History API for Back-Button handling
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.view) {
+        setCurrentView(event.state.view);
+      } else {
+        // If no state, default to SHOP
+        setCurrentView('SHOP');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Initial state
+    window.history.replaceState({ view: 'SHOP' }, '');
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [setCurrentView]);
+
+  // Wrapper for navigation to handle history
+  const navigateTo = (view: typeof currentView) => {
+    if (currentView === view) return;
+    window.history.pushState({ view }, '');
+    setCurrentView(view);
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  };
+
   useEffect(() => {
     const currentCount = cart.reduce((acc, item) => acc + item.quantity, 0);
     if (currentCount > prevCartCount.current) {
@@ -72,7 +99,7 @@ const AppContent: React.FC = () => {
                   ...prev, 
                   location: { lat: latitude, lng: longitude },
                   accuracy: accuracy,
-                  isLiveGPS: true // Real sensor update
+                  isLiveGPS: true 
                 }));
             },
             (err) => {
@@ -101,7 +128,6 @@ const AppContent: React.FC = () => {
           }
       }
 
-      // Tracking Delivery simulation based on REAL OSRM DISTANCE & TIME
       if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
           const targetLocation = user.location;
           if (!targetLocation || !order.storeLocation) return;
@@ -114,8 +140,7 @@ const AppContent: React.FC = () => {
           let currentNodeIndex = 0;
           let nodeProgress = 0;
           
-          // Simulation settings
-          const tickRate = 500; // Update every 500ms
+          const tickRate = 500; 
           const simulationSpeed = user.id === 'demo-user' ? 0.08 : 0.02;
 
           simulationIntervals.current[order.id] = window.setInterval(() => {
@@ -137,8 +162,6 @@ const AppContent: React.FC = () => {
 
             if (currentNodeIndex < path.length - 1) {
               const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-              
-              // Recalculate physical distance to target point
               const distRem = calculateHaversineDistance(pos[0], pos[1], targetLocation.lat, targetLocation.lng);
               const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
 
@@ -156,13 +179,6 @@ const AppContent: React.FC = () => {
       }
     });
   }, [orders, updateOrderStatus, setDriverLocations, showToast, user.location, user.id]);
-
-  const navigateTo = (view: typeof currentView) => {
-      if (currentView === view) return;
-      window.history.pushState({ view }, '');
-      setCurrentView(view);
-      if (mainRef.current) mainRef.current.scrollTop = 0;
-  };
 
   const handleLoginSuccess = (userData: UserState) => {
     setUser(userData);
@@ -216,7 +232,7 @@ const AppContent: React.FC = () => {
     clearCart();
     setShowPaymentGateway(false);
     setPendingOrderDetails(null);
-    setCurrentView('ORDERS');
+    navigateTo('ORDERS');
   };
 
   const canShowNav = !showPaymentGateway;
