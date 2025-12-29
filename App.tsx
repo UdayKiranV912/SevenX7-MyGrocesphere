@@ -47,25 +47,27 @@ const AppContent: React.FC = () => {
   const simulationIntervals = useRef<Record<string, number>>({});
 
   // Sync Current View with History API for Back-Button handling
+  // This prevents the app from closing when users hit the phone's back button
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
         setCurrentView(event.state.view);
       } else {
-        // If no state, default to SHOP
         setCurrentView('SHOP');
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     
-    // Initial state
-    window.history.replaceState({ view: 'SHOP' }, '');
+    // Set initial state
+    if (!window.history.state) {
+      window.history.replaceState({ view: 'SHOP' }, '');
+    }
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, [setCurrentView]);
 
-  // Wrapper for navigation to handle history
+  // Wrapper for navigation to handle history stack
   const navigateTo = (view: typeof currentView) => {
     if (currentView === view) return;
     window.history.pushState({ view }, '');

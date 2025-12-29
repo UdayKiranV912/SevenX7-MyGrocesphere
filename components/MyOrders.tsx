@@ -20,7 +20,8 @@ const LiveTrackingDashboard: React.FC<{ driverLocation: DriverLocationState; use
         driverLocation.lat, driverLocation.lng, userLocation.lat, userLocation.lng
     );
     const time = driverLocation.timeRemaining ?? ((currentDistance / AVG_DELIVERY_SPEED_MPS) * 1.2);
-    const progressPercent = Math.min(98, Math.max(5, (1 - (currentDistance / 3000)) * 100));
+    // Approximate progress based on standard delivery distance (2km)
+    const progressPercent = Math.min(98, Math.max(5, (1 - (currentDistance / 2500)) * 100));
     
     return {
         distanceKm: (currentDistance / 1000).toFixed(1),
@@ -33,7 +34,7 @@ const LiveTrackingDashboard: React.FC<{ driverLocation: DriverLocationState; use
 
   return (
     <div className="bg-white p-5 rounded-[32px] border border-slate-100 shadow-soft-xl space-y-5 animate-slide-up relative overflow-hidden">
-       {/* Live background pulse */}
+       {/* Real-time background pulse */}
        <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none"></div>
 
        <div className="flex items-center justify-between relative z-10">
@@ -44,14 +45,14 @@ const LiveTrackingDashboard: React.FC<{ driverLocation: DriverLocationState; use
              </div>
              <div className="flex flex-col">
                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none mb-1.5 flex items-center gap-1.5">
-                   <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping"></span> Live Status
+                   <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping"></span> Live Logistics
                 </span>
                 <span className="text-xl font-black text-slate-900 leading-none">Arriving in {metrics.timeMins}m</span>
              </div>
           </div>
           <div className="text-right">
              <span className="text-sm font-black text-slate-900 tabular-nums block leading-none">{metrics.distanceKm} km</span>
-             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mt-1">Remaining</span>
+             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mt-1">Distance</span>
           </div>
        </div>
        
@@ -66,7 +67,7 @@ const LiveTrackingDashboard: React.FC<{ driverLocation: DriverLocationState; use
           </div>
           <div className="flex justify-between px-1">
              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mart</span>
-             <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Destination</span>
+             <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Home</span>
           </div>
        </div>
     </div>
@@ -90,7 +91,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-fade-in">
         <div className="text-6xl mb-4 opacity-50">🧾</div>
-        <h3 className="text-xl font-black text-slate-800">No Past Orders</h3>
+        <h3 className="text-xl font-black text-slate-800">No Orders Found</h3>
         <p className="text-slate-400 mt-2 text-sm">Your order history will appear here.</p>
       </div>
     );
@@ -176,7 +177,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                             {!isLiveDelivery && (
                                 <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
                                     <div className="bg-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl border border-white">
-                                        {order.status === 'Preparing' ? '🍴 Preparing Order...' : '⏳ Waiting for Mart'}
+                                        {order.status === 'Preparing' ? '🍴 Packing Order...' : '⏳ Validating Inventory'}
                                     </div>
                                 </div>
                             )}
@@ -208,7 +209,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                     )}
                     
                     <div className="bg-slate-50 p-5 rounded-[28px] border border-slate-100 space-y-3">
-                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Items</h4>
+                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Itemized Summary</h4>
                         {order.items.map((item, i) => (
                             <div key={i} className="flex justify-between items-center">
                                 <div className="flex items-center gap-3">
@@ -219,7 +220,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                             </div>
                         ))}
                         <div className="pt-3 border-t border-slate-200 mt-2 flex justify-between items-center">
-                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Total</span>
+                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Grand Total</span>
                             <span className="text-xl font-black text-slate-900 tabular-nums">₹{order.total}</span>
                         </div>
                     </div>
@@ -232,7 +233,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                             </>
                         ) : (
                             !isReadyForPickup && (
-                                <button className="col-span-2 py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-200">Order ID: {order.id.slice(-8)}</button>
+                                <button className="col-span-2 py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-200">ID: {order.id.slice(-8)}</button>
                             )
                         )}
                     </div>
