@@ -278,21 +278,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [user.id, showToast]);
 
   const updateOrderStatus = useCallback((orderId: string, status: Order['status']) => {
-    console.log(`[StoreContext] Updating order ${orderId} to status: ${status}`);
+    console.log(`[StoreContext] updateOrderStatus: ${orderId} -> ${status}`);
     setOrders(prev => {
-        const next = prev.map(o => {
+        const isComplete = status === 'Delivered' || status === 'Picked Up';
+        return prev.map(o => {
             if (o.id !== orderId) return o;
             
-            // Terminal status logic: Once picked up/delivered, payment is PAID
-            const isComplete = status === 'Delivered' || status === 'Picked Up';
+            // Allow manual transitions from Ready even if it's terminal for simulation
             return { 
                 ...o, 
                 status, 
                 paymentStatus: isComplete ? 'PAID' as const : o.paymentStatus 
             };
         });
-        console.log(`[StoreContext] Orders updated. New status for ${orderId}:`, next.find(o => o.id === orderId)?.status);
-        return next;
     });
   }, []);
 

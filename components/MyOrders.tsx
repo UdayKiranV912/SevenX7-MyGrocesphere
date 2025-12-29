@@ -81,21 +81,13 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation }) => {
   const [selectedRatingOrder, setSelectedRatingOrder] = useState<Order | null>(null);
 
   const handleFinalizePickup = (order: Order) => {
-    const confirmMsg = `Confirm you have paid ₹${order.total} and received your items from ${order.storeName}?`;
-    console.log(`[MyOrders] Attempting pickup confirmation for order: ${order.id}`);
-    
+    const confirmMsg = `Confirm payment of ₹${order.total} and collection from ${order.storeName}?`;
     if (window.confirm(confirmMsg)) {
-        console.log(`[MyOrders] User confirmed. Triggering updateOrderStatus to 'Picked Up' for ${order.id}`);
-        // Use central intelligent updateOrderStatus
+        console.log(`[MyOrders] Confirming Pickup for ${order.id}`);
+        // Synchronous update to prevent state race conditions
         updateOrderStatus(order.id, 'Picked Up');
-        
-        // Force the card to stay expanded so the user sees the 'Picked Up' status change
         setExpandedOrderId(order.id);
-        
-        // Visual confirmation
         showToast(`Success! Order with ${order.storeName} Picked Up 🛍️`);
-    } else {
-        console.log(`[MyOrders] User cancelled confirmation.`);
     }
   };
 
@@ -143,10 +135,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation }) => {
             key={order.id} 
             className={`bg-white rounded-[40px] p-5 shadow-sm border border-slate-100 transition-all animate-slide-up ${isExpanded ? 'ring-2 ring-emerald-500/20 shadow-soft-xl' : ''}`}
             style={{ animationDelay: `${idx * 100}ms` }}
-            onClick={() => {
-                console.log(`[MyOrders] Card clicked: ${order.id}. Current status: ${order.status}`);
-                setExpandedOrderId(isExpanded ? null : order.id);
-            }}
+            onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
           >
             <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col">
@@ -179,14 +168,12 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation }) => {
                                 selectedStore={mapStore}
                                 userLat={userLocation?.lat || 0}
                                 userLng={userLocation?.lng || 0}
-                                userInitial={user.name?.charAt(0) || '👤'}
-                                userAccuracy={user.accuracy}
+                                userInitial="👤"
                                 mode={order.mode}
                                 onSelectStore={() => {}}
                                 showRoute={true}
                                 className="h-full"
                                 driverLocation={isLiveDelivery ? driverLocations[order.id] : undefined}
-                                isLiveGPS={user.isLiveGPS}
                             />
                             {!isLiveDelivery && (
                                 <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
@@ -215,10 +202,11 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation }) => {
                             </div>
                             <button 
                                 onClick={(e) => {
+                                    e.preventDefault();
                                     e.stopPropagation();
                                     handleFinalizePickup(order);
                                 }}
-                                className="w-full py-5 bg-slate-900 text-white rounded-[20px] font-black text-[11px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all"
+                                className="w-full py-5 bg-slate-900 text-white rounded-[20px] font-black text-[11px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3"
                             >
                                 Confirm Pickup & Pay
                             </button>
