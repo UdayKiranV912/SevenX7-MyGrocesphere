@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
 import { MOCK_STORES } from '../constants';
 import { fetchVerifiedStores, fetchStoreInventory } from '../services/storeService';
@@ -21,6 +21,7 @@ interface StoreContextType {
   updateQuantity: (productId: string, delta: number) => void;
   detectLocation: () => Promise<void>;
   isLoading: boolean;
+  isBackendConnected: boolean;
   toast: { message: string; show: boolean; action?: { label: string; onClick: () => void } };
   showToast: (message: string, action?: { label: string; onClick: () => void }) => void;
   hideToast: () => void;
@@ -34,8 +35,8 @@ interface StoreContextType {
   resolveStoreSwitch: (accept: boolean) => void;
   viewingProduct: Product | null;
   setViewingProduct: (product: Product | null) => void;
-  driverLocations: Record<string, { lat: number; lng: number }>;
-  setDriverLocations: React.Dispatch<React.SetStateAction<Record<string, { lat: number; lng: number }>>>;
+  driverLocations: Record<string, { lat: number; lng: number; timeRemaining?: number; distanceRemaining?: number }>;
+  setDriverLocations: React.Dispatch<React.SetStateAction<Record<string, any>>>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -49,6 +50,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderMode, setOrderMode] = useState<OrderMode>('DELIVERY');
   const [isLoading, setIsLoading] = useState(false);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [currentView, setCurrentView] = useState<'SHOP' | 'CART' | 'ORDERS' | 'PROFILE'>('SHOP');
   const [orders, setOrders] = useState<Order[]>([]);
   const [availableStores, setAvailableStores] = useState<Store[]>([]);
@@ -58,8 +60,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [pendingStoreSwitch, setPendingStoreSwitch] = useState<Store | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
-  const [driverLocations, setDriverLocations] = useState<Record<string, { lat: number; lng: number }>>({});
+  const [driverLocations, setDriverLocations] = useState<Record<string, any>>({});
   const [manualStore, setManualStore] = useState<Store | null>(null);
+
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const showToast = useCallback((message: string, action?: { label: string; onClick: () => void }) => {
     setToast({ message, show: true, action });
@@ -88,22 +93,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isLoading) return;
     setIsLoading(true);
     
-    // Fallback coordinates for demo if GPS fails or is unavailable
     const searchLat = lat || 12.9716;
     const searchLng = lng || 77.5946;
 
     if (user.id === 'demo-user') {
         try {
-            // Demo mode now pulls real-time nearby data from OSM via Overpass API
             const realNearbyStores = await fetchRealStores(searchLat, searchLng);
-            if (realNearbyStores.length > 0) {
-                setAvailableStores(realNearbyStores);
-            } else {
-                // If Overpass fails or returns nothing, fallback to hardcoded mock stores
-                setAvailableStores(MOCK_STORES);
-            }
+            setAvailableStores(realNearbyStores.length > 0 ? realNearbyStores : MOCK_STORES);
         } catch (e) {
-            console.error("Demo store discovery failed:", e);
             setAvailableStores(MOCK_STORES);
         } finally {
             setIsLoading(false);
@@ -111,23 +108,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
     }
 
-    if (!lat || !lng) {
-        setAvailableStores([]);
-        setIsLoading(false);
-        return;
-    }
-
     try {
-        const stores = await fetchVerifiedStores(lat, lng);
-        if (stores.length === 0) {
-            setAvailableStores([]);
-        } else {
-            const hydratedStores = await Promise.all(stores.map(async (s) => {
-                const inventory = await fetchStoreInventory(s.id);
-                return { ...s, availableProductIds: inventory.map(i => i.product_id) };
-            }));
-            setAvailableStores(hydratedStores);
-        }
+        const stores = await fetchVerifiedStores(searchLat, searchLng);
+        const hydratedStores = await Promise.all(stores.map(async (s) => {
+            const inventory = await fetchStoreInventory(s.id);
+            return { ...s, availableProductIds: inventory.map(i => i.product_id) };
+        }));
+        setAvailableStores(hydratedStores);
     } catch (e) {
         console.error("Marts sync error:", e);
         setAvailableStores([]);
@@ -144,12 +131,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
+        // Real-time table listeners for Cross-App Sync
         const storeChannel = supabase
             .channel('store-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => {
-                loadStores(user.location?.lat, user.location?.lng);
+                loadStores(userRef.current.location?.lat, userRef.current.location?.lng);
             })
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') setIsBackendConnected(true);
+            });
 
         const orderChannel = supabase
             .channel(`customer-orders-${user.id}`)
@@ -161,24 +151,44 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }, (payload) => {
                 const updated = payload.new as any;
                 setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, status: updated.status } : o));
-                showToast(`Logistics Update: Order is ${updated.status}`);
+                showToast(`Logistics Update: Order ${updated.id.slice(-4)} is ${updated.status}`);
+            })
+            .subscribe();
+
+        // Real-time Driver Tracking Listener (Updated by separate Delivery App)
+        const trackingChannel = supabase
+            .channel('realtime-tracking')
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'driver_locations'
+            }, (payload) => {
+                const data = payload.new as any;
+                setDriverLocations(prev => ({
+                    ...prev,
+                    [data.order_id]: {
+                        lat: data.lat,
+                        lng: data.lng,
+                        timeRemaining: data.time_remaining,
+                        distanceRemaining: data.distance_remaining
+                    }
+                }));
             })
             .subscribe();
 
         return () => { 
             supabase.removeChannel(storeChannel); 
             supabase.removeChannel(orderChannel);
+            supabase.removeChannel(trackingChannel);
+            setIsBackendConnected(false);
         };
     }
-  }, [user.isAuthenticated, user.id, user.location, loadStores, showToast]);
+  }, [user.isAuthenticated, user.id, loadStores, showToast]);
 
   const detectLocation = useCallback(async () => {
     if (!navigator.geolocation) { showToast("GPS Service Unavailable"); return; }
     setIsLoading(true);
     
-    // Distinguish real-time users from demo users
-    const isDemo = user.id === 'demo-user';
-
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
@@ -190,7 +200,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             ...prev, 
             location: { lat: latitude, lng: longitude },
             accuracy: accuracy,
-            isLiveGPS: true, // Mark as real-time precision
+            isLiveGPS: true,
             address: data.display_name,
             neighborhood: neighborhood
           }));
@@ -206,9 +216,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       },
       (error) => { 
-        console.warn("Geolocation Error:", error.message);
         setIsLoading(false); 
-        if (isDemo) {
+        if (userRef.current.id === 'demo-user') {
             setUser(prev => ({ 
               ...prev, 
               location: { lat: 12.9716, lng: 77.5946 }, 
@@ -216,21 +225,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               isLiveGPS: false 
             }));
         } else {
-            showToast("Precision Location Denied. Ensure GPS is ON."); 
+            showToast("Location Denied. Using fallback."); 
         }
       },
-      { 
-        enableHighAccuracy: true, 
-        timeout: 12000, 
-        maximumAge: 0 // Force fresh sensor data
-      }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
-  }, [showToast, user.id]);
+  }, [showToast]);
 
   const addToCart = useCallback((product: Product, quantity = 1, brand?: string, price?: number, variant?: any) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id && item.selectedBrand === (brand || 'Generic') && item.selectedVariant?.name === variant?.name);
-      
       if (existing) {
         return prev.map(item => (item.id === product.id && item.selectedBrand === (brand || 'Generic')) ? { ...item, quantity: item.quantity + quantity } : item);
       }
@@ -254,6 +258,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addOrder = useCallback(async (order: Order) => {
       if (user.id && user.id !== 'demo-user') {
+          // Cross-App sync: Insert order into Supabase for Store/Delivery/Admin apps to see
           const { data: orderData, error } = await supabase.from('orders').insert({
               customer_id: user.id,
               store_id: order.items[0].storeId,
@@ -261,22 +266,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               items: order.items,
               total_amount: order.total,
               delivery_address: order.deliveryAddress,
-              order_mode: order.mode
+              order_mode: order.mode,
+              payment_status: order.paymentStatus
           }).select().single();
 
           if (error) {
-              showToast("Ecosystem Sync Failed. Check Connection.");
-              return;
-          }
-
-          if (orderData) {
-              const items = order.items.map(item => ({
-                  order_id: orderData.id,
-                  product_id: item.originalProductId,
-                  quantity: item.quantity,
-                  unit_price: item.price
-              }));
-              await supabase.from('order_items').insert(items);
+              console.error("Order Ecosystem Sync Failed:", error);
+              showToast("Cloud sync failed. Order stored locally.");
+          } else if (orderData) {
               order.id = orderData.id;
           }
       }
@@ -296,7 +293,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <StoreContext.Provider value={{
       user, setUser, cart, setCart, clearCart, activeStore, setActiveStore: setManualStore, availableStores,
       orderMode, setOrderMode, addToCart, updateQuantity, detectLocation,
-      isLoading, toast, showToast, hideToast, currentView, setCurrentView,
+      isLoading, isBackendConnected, toast, showToast, hideToast, currentView, setCurrentView,
       orders, setOrders, addOrder, updateOrderStatus, pendingStoreSwitch, resolveStoreSwitch,
       viewingProduct, setViewingProduct, driverLocations, setDriverLocations
     }}>

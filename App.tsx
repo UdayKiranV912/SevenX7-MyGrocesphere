@@ -19,7 +19,7 @@ const AppContent: React.FC = () => {
     orderMode, setOrderMode,
     addToCart, updateQuantity,
     detectLocation,
-    isLoading,
+    isLoading, isBackendConnected,
     toast, hideToast, showToast,
     currentView, setCurrentView,
     orders, addOrder, updateOrderStatus,
@@ -47,7 +47,6 @@ const AppContent: React.FC = () => {
   const simulationIntervals = useRef<Record<string, number>>({});
 
   // Sync Current View with History API for Back-Button handling
-  // This prevents the app from closing when users hit the phone's back button
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
@@ -58,16 +57,12 @@ const AppContent: React.FC = () => {
     };
 
     window.addEventListener('popstate', handlePopState);
-    
-    // Set initial state
     if (!window.history.state) {
       window.history.replaceState({ view: 'SHOP' }, '');
     }
-
     return () => window.removeEventListener('popstate', handlePopState);
   }, [setCurrentView]);
 
-  // Wrapper for navigation to handle history stack
   const navigateTo = (view: typeof currentView) => {
     if (currentView === view) return;
     window.history.pushState({ view }, '');
@@ -118,66 +113,65 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     orders.forEach(async (order) => {
-      if (order.status === 'Pending') {
-          setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
-      }
-
-      if (order.status === 'Preparing') {
-          if (order.mode === 'DELIVERY') {
-              setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
-          } else {
-              setTimeout(() => updateOrderStatus(order.id, 'Ready'), 6000);
+      // Local Simulation for DEMO user only
+      if (user.id === 'demo-user') {
+          if (order.status === 'Pending') {
+              setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
           }
-      }
 
-      if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
-          const targetLocation = user.location;
-          if (!targetLocation || !order.storeLocation) return;
-          
-          const routeResult = await getRoute(order.storeLocation.lat, order.storeLocation.lng, targetLocation.lat, targetLocation.lng);
-          const path = routeResult.coordinates;
-          
-          if (path.length < 2) return;
+          if (order.status === 'Preparing') {
+              if (order.mode === 'DELIVERY') {
+                  setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
+              } else {
+                  setTimeout(() => updateOrderStatus(order.id, 'Ready'), 6000);
+              }
+          }
 
-          let currentNodeIndex = 0;
-          let nodeProgress = 0;
-          
-          const tickRate = 500; 
-          const simulationSpeed = user.id === 'demo-user' ? 0.08 : 0.02;
+          if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
+              const targetLocation = user.location;
+              if (!targetLocation || !order.storeLocation) return;
+              
+              const routeResult = await getRoute(order.storeLocation.lat, order.storeLocation.lng, targetLocation.lat, targetLocation.lng);
+              const path = routeResult.coordinates;
+              
+              if (path.length < 2) return;
 
-          simulationIntervals.current[order.id] = window.setInterval(() => {
-            if (currentNodeIndex >= path.length - 1) {
-              window.clearInterval(simulationIntervals.current[order.id]);
-              delete simulationIntervals.current[order.id];
-              updateOrderStatus(order.id, 'Delivered');
-              setDriverLocations(prev => { const next = { ...prev }; delete next[order.id]; return next; });
-              showToast(`Order delivered! 🛵`);
-              return;
-            }
+              let currentNodeIndex = 0;
+              let nodeProgress = 0;
+              
+              const tickRate = 500; 
+              const simulationSpeed = 0.08;
 
-            nodeProgress += simulationSpeed;
+              simulationIntervals.current[order.id] = window.setInterval(() => {
+                if (currentNodeIndex >= path.length - 1) {
+                  window.clearInterval(simulationIntervals.current[order.id]);
+                  delete simulationIntervals.current[order.id];
+                  updateOrderStatus(order.id, 'Delivered');
+                  setDriverLocations(prev => { const next = { ...prev }; delete next[order.id]; return next; });
+                  showToast(`Order delivered! 🛵`);
+                  return;
+                }
 
-            if (nodeProgress >= 1) { 
-              nodeProgress = 0; 
-              currentNodeIndex++; 
-            }
+                nodeProgress += simulationSpeed;
+                if (nodeProgress >= 1) { nodeProgress = 0; currentNodeIndex++; }
 
-            if (currentNodeIndex < path.length - 1) {
-              const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-              const distRem = calculateHaversineDistance(pos[0], pos[1], targetLocation.lat, targetLocation.lng);
-              const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
+                if (currentNodeIndex < path.length - 1) {
+                  const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
+                  const distRem = calculateHaversineDistance(pos[0], pos[1], targetLocation.lat, targetLocation.lng);
+                  const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
 
-              setDriverLocations(prev => ({ 
-                ...prev, 
-                [order.id]: { 
-                  lat: pos[0], 
-                  lng: pos[1],
-                  distanceRemaining: distRem,
-                  timeRemaining: timeRem
-                } 
-              }));
-            }
-          }, tickRate);
+                  setDriverLocations(prev => ({ 
+                    ...prev, 
+                    [order.id]: { 
+                      lat: pos[0], 
+                      lng: pos[1],
+                      distanceRemaining: distRem,
+                      timeRemaining: timeRem
+                    } 
+                  }));
+                }
+              }, tickRate);
+          }
       }
     });
   }, [orders, updateOrderStatus, setDriverLocations, showToast, user.location, user.id]);
@@ -256,7 +250,7 @@ const AppContent: React.FC = () => {
     if (!isLoading && availableStores.length === 0) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase">Coming Soon</span>
+           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase">Searching Marts</span>
         </div>
       );
     }
@@ -294,8 +288,10 @@ const AppContent: React.FC = () => {
       {!showPaymentGateway && (
         <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-1.5 shadow-sm shrink-0 safe-top h-14 flex items-center">
             <div className="max-w-md mx-auto flex items-center justify-between w-full">
-                <div className="flex-shrink-0 flex justify-start items-center min-w-[70px]">
+                <div className="flex-shrink-0 flex justify-start items-center min-w-[70px] relative">
                     <SevenX7Logo size="xs" hideBrandName={true} />
+                    {/* Cloud Connectivity Pulse */}
+                    <div className={`absolute -right-1 -top-1 w-2 h-2 rounded-full border border-white ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} title={isBackendConnected ? 'Backend Connected' : 'Syncing...'}></div>
                 </div>
                 <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform px-2 overflow-hidden" onClick={detectLocation}>
                     {renderHeaderCenter()}
@@ -349,7 +345,7 @@ const AppContent: React.FC = () => {
                               </span>
                           ) : null}
                       </div>
-                      <span className={`text-[6px] font-black uppercase tracking-[0.1em] mt-0.5 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>{item.label}</span>
+                      <span className={`text-[6px] font-black uppercase tracking-[0.1em] mt-0.5 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>{isActive ? '•' : item.label}</span>
                   </button>
                 );
             })}
