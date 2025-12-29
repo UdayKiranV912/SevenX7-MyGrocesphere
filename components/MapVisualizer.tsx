@@ -74,7 +74,7 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     );
     
     const totalDistance = journeyStartDistanceRef.current;
-    const progressPercent = Math.min(100, Math.max(2, (1 - (currentDistance / totalDistance)) * 100));
+    const progressPercent = Math.min(98, Math.max(5, (1 - (currentDistance / totalDistance)) * 100));
     const time = driverLocation.timeRemaining ?? ((currentDistance / AVG_DELIVERY_SPEED_MPS) * 1.2);
     
     return {
@@ -163,13 +163,12 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     if (userLat && userLng) {
       const userMarkerHtml = `
             <div class="relative flex flex-col items-center justify-center">
-               <div class="absolute -top-12 bg-emerald-600 text-white text-[8px] font-black px-3 py-1.5 rounded-xl shadow-2xl whitespace-nowrap border border-white/20 uppercase tracking-widest z-[60] animate-bounce-soft flex items-center gap-2">
-                  ${isLiveGPS ? '<span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> LIVE' : ''} Delivery Point
+               <div class="absolute -top-10 bg-slate-900 text-white text-[7px] font-black px-2 py-1 rounded-lg shadow-2xl whitespace-nowrap border border-white/20 uppercase tracking-[0.2em] z-[60] flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full ${isLiveGPS ? 'animate-ping' : ''}"></span> Destination
                </div>
-               <div class="relative flex items-center justify-center w-12 h-12">
+               <div class="relative flex items-center justify-center w-10 h-10">
                   <div class="absolute w-full h-full bg-emerald-500/10 rounded-full animate-ping"></div>
-                  <div class="absolute w-8 h-8 bg-emerald-500/20 rounded-full animate-pulse"></div>
-                  <div class="relative w-8 h-8 bg-emerald-600 rounded-full border-[3px] border-white shadow-[0_0_20px_rgba(16,185,129,0.5)] flex items-center justify-center text-white text-[10px] font-black uppercase overflow-hidden">
+                  <div class="relative w-7 h-7 bg-white rounded-full border-[2.5px] border-emerald-500 shadow-xl flex items-center justify-center text-slate-900 text-[10px] font-black">
                      ${userInitial}
                   </div>
                </div>
@@ -178,10 +177,10 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
 
       if (!userMarkerRef.current) {
         const userIcon = L.divIcon({
-          className: 'user-marker-radar-personalized',
+          className: 'user-marker-refined',
           html: userMarkerHtml,
-          iconSize: [48, 48],
-          iconAnchor: [24, 24]
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
         });
         userMarkerRef.current = L.marker([userLat, userLng], { 
             icon: userIcon, 
@@ -190,10 +189,10 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       } else {
         userMarkerRef.current.setLatLng([userLat, userLng]);
         userMarkerRef.current.setIcon(L.divIcon({
-          className: 'user-marker-radar-personalized',
+          className: 'user-marker-refined',
           html: userMarkerHtml,
-          iconSize: [48, 48],
-          iconAnchor: [24, 24]
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
         }));
       }
 
@@ -201,20 +200,16 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
           if (!accuracyCircleRef.current) {
             accuracyCircleRef.current = L.circle([userLat, userLng], {
                 radius: userAccuracy,
-                color: isLiveGPS ? '#10b981' : '#94a3b8',
-                fillColor: isLiveGPS ? '#10b981' : '#94a3b8',
-                fillOpacity: 0.08,
-                weight: 1.5,
-                dashArray: '10, 10',
+                color: '#10b981',
+                fillColor: '#10b981',
+                fillOpacity: 0.05,
+                weight: 1,
+                dashArray: '5, 5',
                 interactive: false
             }).addTo(mapInstanceRef.current);
           } else {
             accuracyCircleRef.current.setLatLng([userLat, userLng]);
             accuracyCircleRef.current.setRadius(userAccuracy);
-            accuracyCircleRef.current.setStyle({
-                color: isLiveGPS ? '#10b981' : '#94a3b8',
-                fillColor: isLiveGPS ? '#10b981' : '#94a3b8'
-            });
           }
       }
     }
@@ -224,12 +219,13 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
              const driverIcon = L.divIcon({
                  className: 'driver-marker-live',
                  html: `
-                    <div class="relative flex flex-col items-center justify-center animate-fade-in">
-                       <div class="w-14 h-14 bg-slate-900 rounded-[22px] border-[3px] border-white shadow-2xl flex items-center justify-center animate-float relative overflow-hidden">
-                          <div class="absolute inset-0 bg-emerald-500/10 animate-pulse"></div>
-                          <span class="text-3xl transform -scale-x-100 z-10">🛵</span>
+                    <div class="relative flex flex-col items-center justify-center">
+                       <div class="absolute inset-0 w-16 h-16 -m-1 bg-emerald-500/10 rounded-full animate-ping opacity-40"></div>
+                       <div class="w-14 h-14 bg-slate-900 rounded-[22px] border-[3px] border-white shadow-2xl flex items-center justify-center relative overflow-hidden z-20">
+                          <div class="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 to-transparent"></div>
+                          <span class="text-3xl transform -scale-x-100 z-10 filter drop-shadow-lg">🛵</span>
                        </div>
-                       <div class="w-4 h-1 bg-black/10 rounded-full mt-1 blur-[1px] animate-pulse"></div>
+                       <div class="w-5 h-1.5 bg-black/20 rounded-full mt-1 blur-[2px] animate-pulse"></div>
                     </div>
                  `,
                  iconSize: [56, 56],
@@ -282,23 +278,26 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     if (routePath.length > 0) {
        routeLineRef.current = L.polyline(routePath, {
          color: '#10b981',
-         weight: 6,
-         opacity: 0.9,
+         weight: 5,
+         opacity: 0.8,
          lineCap: 'round',
          lineJoin: 'round',
-         dashArray: '1, 10'
+         dashArray: '1, 12'
        }).addTo(mapInstanceRef.current);
 
-       const boundsHash = `route-${routePath[0][0]}-${routePath[routePath.length-1][0]}`;
+       const boundsHash = `route-${routePath[0][0]}-${routePath[routePath.length-1][0]}-${driverLocation?.lat}`;
        if (prevBoundsHash.current !== boundsHash) {
            const bounds = L.latLngBounds(routePath);
-           mapInstanceRef.current.fitBounds(bounds, { 
-               padding: [120, 120], 
-               maxZoom: 17.5, 
-               animate: true 
+           if (driverLocation) bounds.extend([driverLocation.lat, driverLocation.lng]);
+           if (userLat && userLng) bounds.extend([userLat, userLng]);
+           
+           mapInstanceRef.current.flyToBounds(bounds, { 
+               padding: [80, 80], 
+               maxZoom: 17, 
+               animate: true,
+               duration: 1.5
            });
            prevBoundsHash.current = boundsHash;
-           setFollowUser(false);
        }
     }
   }, [stores, userLat, userLng, userInitial, userAccuracy, isLiveGPS, selectedStore, showRoute, mode, driverLocation, routePath, followUser, isLocating]);
@@ -330,41 +329,41 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
     <div className={`relative w-full bg-slate-50 rounded-[32px] overflow-hidden shadow-inner border border-white isolate ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full z-0 grayscale-[0.2]" />
       
-      {/* Map Attribution */}
-      <div className="absolute bottom-3 left-6 z-[400] bg-white/40 backdrop-blur-[2px] px-2 py-0.5 rounded-md">
-         <span className="text-[7px] font-black text-slate-500/80 uppercase tracking-widest leading-none select-none">© OpenStreetMap</span>
-      </div>
-
       {/* Optimized Real-time Logistics HUD */}
       {logisticsMetrics && (
-          <div className="absolute top-3 left-3 right-3 z-[500] pointer-events-none animate-slide-up">
-              <div className="bg-slate-900/95 backdrop-blur-xl p-3 rounded-2xl border border-white/10 shadow-xl flex flex-col gap-2 overflow-hidden">
+          <div className="absolute top-4 left-4 right-4 z-[500] pointer-events-none animate-slide-up">
+              <div className="bg-white/90 backdrop-blur-2xl p-4 rounded-[24px] border border-white shadow-2xl flex flex-col gap-3 overflow-hidden">
                   <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-lg shadow-lg relative">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-xl shadow-lg relative border border-white/10">
                             🛵
-                            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-white rounded-full animate-ping"></div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white animate-pulse"></div>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-0.5">Live Tracking</span>
-                            <span className="text-[11px] font-black text-white leading-none">In Transit</span>
+                            <span className="text-[14px] font-black text-slate-900 leading-none">Arriving in {logisticsMetrics.timeMins}m</span>
+                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none mt-1.5 flex items-center gap-1.5">
+                                <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping"></span> Live Transit
+                            </span>
                         </div>
                       </div>
                       <div className="text-right">
-                          <div className="flex items-center gap-1.5 justify-end">
-                            <span className="text-[13px] font-black text-white tabular-nums">{logisticsMetrics.timeMins}m</span>
-                            <span className="text-[10px] text-slate-400 font-bold">•</span>
-                            <span className="text-[11px] font-black text-slate-200 tabular-nums">{logisticsMetrics.distanceKm}km</span>
-                          </div>
-                          <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest block">to destination</span>
+                          <span className="text-[12px] font-black text-slate-900 tabular-nums block leading-none">{logisticsMetrics.distanceKm} km</span>
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mt-1">Remaining</span>
                       </div>
                   </div>
-                  <div className="relative h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000 ease-linear"
-                        style={{ width: `${logisticsMetrics.progress}%` }}
-                      >
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  
+                  <div className="space-y-1.5">
+                      <div className="relative h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                            style={{ width: `${logisticsMetrics.progress}%` }}
+                          >
+                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer"></div>
+                          </div>
+                      </div>
+                      <div className="flex justify-between">
+                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Store</span>
+                          <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest">Destination</span>
                       </div>
                   </div>
               </div>
@@ -374,14 +373,14 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
       <div className="absolute bottom-6 right-6 z-[500] pointer-events-none">
           <button 
             onClick={handleRecenter}
-            className={`w-14 h-14 backdrop-blur-md rounded-[22px] shadow-2xl flex items-center justify-center transition-all active:scale-90 border-2 pointer-events-auto group ${
+            className={`w-12 h-12 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center transition-all active:scale-90 border-2 pointer-events-auto group ${
                 followUser ? 'bg-slate-900 text-white border-slate-700' : 'bg-white/90 text-slate-900 border-white'
             }`}
           >
             {isLocating ? (
-               <div className="w-6 h-6 border-[3px] border-current border-t-transparent rounded-full animate-spin"></div>
+               <div className="w-5 h-5 border-[3px] border-current border-t-transparent rounded-full animate-spin"></div>
             ) : (
-               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
                  <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                </svg>
             )}
