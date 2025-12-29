@@ -103,13 +103,13 @@ export const StickerProduct: React.FC<StickerProductProps> = ({
           {discount}% OFF
       </div>
 
-      <div className="relative aspect-square mb-4 rounded-[24px] bg-slate-50/80 flex items-center justify-center overflow-hidden border border-slate-100 shadow-inner">
+      <div className="relative aspect-square mb-4 rounded-[24px] bg-slate-50/80 flex items-center justify-center overflow-hidden border border-slate-100 shadow-inner p-3">
         <div className={`text-6xl transform transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] emoji-3d ${count > 0 ? 'scale-110 rotate-3' : ''}`}>
           {product.emoji}
         </div>
         
         {count > 0 && (
-          <div className="absolute bottom-2.5 right-2.5 bg-emerald-500 text-white text-[10px] font-black w-6.5 h-6.5 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 animate-scale-in">
+          <div className="absolute bottom-2.5 right-2.5 bg-emerald-500 text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 animate-scale-in">
             {count}
           </div>
         )}

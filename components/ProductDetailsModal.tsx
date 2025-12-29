@@ -102,8 +102,12 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({ produc
 
         <div className="flex-1 overflow-y-auto hide-scrollbar px-6 pt-2 pb-64"> 
             <div className="flex flex-col items-center text-center mb-8">
-                <div className="w-48 h-48 bg-slate-50 rounded-[2.5rem] flex items-center justify-center shadow-inner border-4 border-white mb-6 transform rotate-1 animate-float relative">
-                    <span className="text-7xl">{product.emoji}</span>
+                <div className="w-48 h-48 bg-slate-50 rounded-[2.5rem] flex items-center justify-center shadow-inner border-4 border-white mb-6 transform rotate-1 animate-float relative p-8">
+                    {product.imageUrl ? (
+                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                    ) : (
+                        <span className="text-7xl">{product.emoji}</span>
+                    )}
                 </div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2">{product.name}</h2>
                 <div className="flex items-center gap-4">

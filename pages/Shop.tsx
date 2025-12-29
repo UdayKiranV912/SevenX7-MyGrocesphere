@@ -46,7 +46,7 @@ export const ShopPage: React.FC = () => {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center p-10 text-center animate-fade-in">
         <div className="relative mb-10 group">
-            <div className="w-44 h-44 bg-slate-900 rounded-[48px] flex items-center justify-center text-8xl shadow-2xl transition-transform group-hover:scale-110 duration-500">🏬</div>
+            <div className="w-52 h-52 bg-slate-900 rounded-[48px] flex items-center justify-center text-8xl shadow-2xl transition-transform group-hover:scale-105 duration-500">🏬</div>
             <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-emerald-500 rounded-full border-4 border-white flex items-center justify-center text-white text-2xl animate-pulse shadow-2xl">✨</div>
         </div>
         <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight mb-4 uppercase">No Marts Detected</h2>
@@ -64,7 +64,7 @@ export const ShopPage: React.FC = () => {
     <div className="pb-32 animate-fade-in bg-slate-50/30">
       <div className="sticky top-0 z-[50] bg-white/95 backdrop-blur-xl border-b border-slate-100 px-5 py-3 shadow-sm">
         <div className="relative group max-w-md mx-auto">
-            <input type="text" placeholder="Search registered marts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-11 bg-slate-100 rounded-2xl px-11 text-xs font-bold border-2 border-transparent outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white transition-all"/>
+            <input type="text" placeholder="Search registered marts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-11 bg-slate-100 rounded-2xl px-11 text-base font-bold border-2 border-transparent outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white transition-all"/>
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base opacity-40">🔍</span>
         </div>
       </div>

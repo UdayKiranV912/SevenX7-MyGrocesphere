@@ -31,7 +31,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({ item, onUpdateQuantity, index
        }`}
        style={{ animationDelay: `${index * 30}ms` }}
      >
-        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-lg shrink-0 border border-slate-200 shadow-sm overflow-hidden">
+        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-lg shrink-0 border border-slate-200 shadow-sm overflow-hidden p-1.5">
             {item.emoji}
         </div>
         
@@ -179,7 +179,7 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
               return (
                   <div key={storeId} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                       <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-50 flex items-center gap-3">
-                           <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] ${
+                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] ${
                                storeInfo.storeType === 'produce' ? 'bg-emerald-500 text-white' : 
                                storeInfo.storeType === 'dairy' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
                            }`}>

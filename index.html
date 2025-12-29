@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Grocesphere</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -101,8 +102,23 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <style>
-      body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+      html, body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #f8fafc; 
+        color: #0f172a;
+        touch-action: manipulation;
+        overscroll-behavior-y: none;
+        width: 100%;
+        height: 100%;
+        overflow-x: hidden;
+      }
       h1, h2, h3, h4, h5, h6 { font-family: 'Lexend', sans-serif; }
+      
+      /* Force 16px minimum font size for mobile inputs to prevent iOS auto-zoom */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
+
       .emoji-3d {
         filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));
         transform: translateZ(0);

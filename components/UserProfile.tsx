@@ -108,7 +108,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                         <div className="flex-1">
                             {isEditing ? (
                                 <input 
-                                    className="font-black text-lg text-slate-900 border-b-2 border-emerald-500 w-full outline-none bg-transparent py-1"
+                                    className="font-black text-base text-slate-900 border-b-2 border-emerald-500 w-full outline-none bg-transparent py-1"
                                     value={formData.name}
                                     onChange={e => setFormData({...formData, name: e.target.value})}
                                     placeholder="Your Name"
@@ -180,13 +180,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser, on
                         <div className="bg-white p-6 rounded-[28px] border-2 border-emerald-500 shadow-xl animate-slide-up space-y-4">
                             <input 
                                 placeholder="Label (e.g. My PhonePe)"
-                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm font-black outline-none"
+                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-base font-black outline-none"
                                 value={newPayment.label}
                                 onChange={e => setNewPayment({...newPayment, label: e.target.value})}
                             />
                             <input 
                                 placeholder="UPI ID (user@bank)"
-                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm font-black outline-none"
+                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-base font-black outline-none"
                                 value={newPayment.upiId}
                                 onChange={e => setNewPayment({...newPayment, upiId: e.target.value})}
                             />

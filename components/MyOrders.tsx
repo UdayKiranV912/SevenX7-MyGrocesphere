@@ -100,8 +100,12 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
             <div className="flex gap-2 overflow-x-auto hide-scrollbar py-2">
                 {order.items.slice(0, 5).map((item, i) => {
                     return (
-                        <div key={i} className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-lg border border-slate-100 shrink-0 shadow-inner overflow-hidden">
-                            {item.emoji}
+                        <div key={i} className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-lg border border-slate-100 shrink-0 shadow-inner overflow-hidden p-1.5">
+                            {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                            ) : (
+                                item.emoji
+                            )}
                         </div>
                     );
                 })}
@@ -162,8 +166,12 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                         {order.items.map((item, i) => (
                             <div key={i} className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-md bg-slate-50 flex items-center justify-center text-xs overflow-hidden">
-                                        {item.emoji}
+                                    <div className="w-6 h-6 rounded-md bg-slate-50 flex items-center justify-center text-xs overflow-hidden p-1">
+                                        {item.imageUrl ? (
+                                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                                        ) : (
+                                            item.emoji
+                                        )}
                                     </div>
                                     <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{item.quantity} x {item.name}</span>
                                 </div>

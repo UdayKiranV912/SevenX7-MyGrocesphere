@@ -101,7 +101,7 @@ export const AddressSearch: React.FC<AddressSearchProps> = ({
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-12 py-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-DEFAULT/50 transition-all shadow-inner"
+          className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-12 py-4 text-base font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-DEFAULT/50 transition-all shadow-inner"
         />
         
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -137,7 +137,7 @@ export const AddressSearch: React.FC<AddressSearchProps> = ({
               className="w-full text-left px-5 py-3 hover:bg-slate-50 border-b border-slate-50 flex items-start gap-3"
             >
               <span className="mt-0.5 text-slate-400">📍</span>
-              <span className="text-xs font-bold text-slate-600 line-clamp-2">{result.display_name}</span>
+              <span className="text-sm font-bold text-slate-600 line-clamp-2">{result.display_name}</span>
             </button>
           ))}
         </div>

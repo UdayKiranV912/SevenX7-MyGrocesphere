@@ -138,7 +138,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                         setTransactionId(e.target.value);
                         setErrorMsg('');
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center text-xs font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-emerald-50 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center text-base font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-emerald-50 transition-all"
                   />
                   {errorMsg && <p className="text-[9px] text-red-500 font-black uppercase bg-red-50 p-2 rounded-xl">{errorMsg}</p>}
                   <button onClick={verifyWithAdmin} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Submit ID</button>
@@ -150,7 +150,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
           <div className="text-center p-10 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-8">
               <div className="relative w-24 h-24 mx-auto">
                 <div className="absolute inset-0 border-4 border-emerald-100 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                <div className="absolute inset-0 border-4 border-emerald-50 border-t-transparent rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center text-3xl">🛡️</div>
               </div>
               <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Admin Verifying</h3>

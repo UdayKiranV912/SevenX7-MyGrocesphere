@@ -14,6 +14,7 @@ export interface Product {
   name: string;
   price: number; 
   emoji: string;
+  imageUrl?: string; // New property for vector illustrations
   category: string;
   description?: string;
   ingredients?: string;

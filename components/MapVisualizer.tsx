@@ -53,36 +53,28 @@ export const MapVisualizer: React.FC<MapVisualizerProps> = ({
   // Journey Memory to calculate true progress %
   const journeyStartDistanceRef = useRef<number | null>(null);
 
-  // Initialize/Reset journey start distance when a new tracking session begins or ends
   useEffect(() => {
     if (driverLocation && userLat !== null && userLng !== null) {
         if (journeyStartDistanceRef.current === null) {
             const initialDist = driverLocation.distanceRemaining ?? calculateHaversineDistance(
                 driverLocation.lat, driverLocation.lng, userLat, userLng
             );
-            journeyStartDistanceRef.current = Math.max(initialDist, 100); // Minimum 100m for scale
+            journeyStartDistanceRef.current = Math.max(initialDist, 100); 
         }
     } else {
         journeyStartDistanceRef.current = null;
     }
   }, [driverLocation, userLat, userLng]);
 
-  // DYNAMIC LOGISTICS CALCULATION
   const logisticsMetrics = useMemo(() => {
     if (!driverLocation || userLat === null || userLng === null || journeyStartDistanceRef.current === null) return null;
     
-    // Calculate current distance
     const currentDistance = driverLocation.distanceRemaining ?? calculateHaversineDistance(
         driverLocation.lat, driverLocation.lng, userLat, userLng
     );
     
     const totalDistance = journeyStartDistanceRef.current;
-    
-    // Calculate Progress % (0 to 100)
-    // We use a linear scale based on the distance moved relative to starting distance
     const progressPercent = Math.min(100, Math.max(2, (1 - (currentDistance / totalDistance)) * 100));
-    
-    // Estimate time (1.2 multiplier for traffic factor)
     const time = driverLocation.timeRemaining ?? ((currentDistance / AVG_DELIVERY_SPEED_MPS) * 1.2);
     
     return {
