@@ -74,16 +74,28 @@ const LiveTrackingDashboard: React.FC<{ driverLocation: DriverLocationState; use
   );
 };
 
-export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) => {
-  const { orders, driverLocations, user, updateOrderStatus, setOrders } = useStore();
+export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation }) => {
+  const { orders, driverLocations, user, updateOrderStatus, showToast } = useStore();
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
   const [selectedRatingOrder, setSelectedRatingOrder] = useState<Order | null>(null);
 
-  const handleFinalizePickup = (orderId: string) => {
-    if (confirm("Have you paid at the store and received your items?")) {
-        updateOrderStatus(orderId, 'Picked Up');
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, paymentStatus: 'PAID' } : o));
+  const handleFinalizePickup = (order: Order) => {
+    const confirmMsg = `Confirm you have paid ₹${order.total} and received your items from ${order.storeName}?`;
+    console.log(`[MyOrders] Attempting pickup confirmation for order: ${order.id}`);
+    
+    if (window.confirm(confirmMsg)) {
+        console.log(`[MyOrders] User confirmed. Triggering updateOrderStatus to 'Picked Up' for ${order.id}`);
+        // Use central intelligent updateOrderStatus
+        updateOrderStatus(order.id, 'Picked Up');
+        
+        // Force the card to stay expanded so the user sees the 'Picked Up' status change
+        setExpandedOrderId(order.id);
+        
+        // Visual confirmation
+        showToast(`Success! Order with ${order.storeName} Picked Up 🛍️`);
+    } else {
+        console.log(`[MyOrders] User cancelled confirmation.`);
     }
   };
 
@@ -109,7 +121,6 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
         const isExpanded = expandedOrderId === order.id || (idx === 0 && !expandedOrderId && (isLiveDelivery || isReadyForPickup));
         const isCompleted = order.status === 'Delivered' || order.status === 'Picked Up';
         const isCancelled = order.status === 'Cancelled';
-        const isPop = order.paymentMethod?.includes('POP') || order.paymentStatus === 'PENDING';
         
         let badgeColor = 'bg-blue-100 text-blue-700';
         if (isCompleted) badgeColor = 'bg-green-100 text-green-700';
@@ -132,12 +143,15 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
             key={order.id} 
             className={`bg-white rounded-[40px] p-5 shadow-sm border border-slate-100 transition-all animate-slide-up ${isExpanded ? 'ring-2 ring-emerald-500/20 shadow-soft-xl' : ''}`}
             style={{ animationDelay: `${idx * 100}ms` }}
-            onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+            onClick={() => {
+                console.log(`[MyOrders] Card clicked: ${order.id}. Current status: ${order.status}`);
+                setExpandedOrderId(isExpanded ? null : order.id);
+            }}
           >
             <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <div className={`w-2 h-2 rounded-full ${isCompleted ? 'bg-slate-300' : 'bg-emerald-500 animate-pulse'}`}></div>
                         <h3 className="font-black text-slate-900 text-[12px] uppercase tracking-widest">{order.storeName}</h3>
                     </div>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">₹{order.total} • {order.mode} • {new Date(order.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
@@ -191,7 +205,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                         />
                     )}
 
-                    {isReadyForPickup && isPop && (
+                    {isReadyForPickup && (
                         <div className="bg-emerald-50 rounded-[32px] p-6 border-2 border-dashed border-emerald-200 text-center space-y-4">
                             <div className="w-16 h-16 bg-white rounded-[24px] flex items-center justify-center text-4xl mx-auto shadow-sm border border-emerald-100">🏪</div>
                             <h4 className="text-[14px] font-black text-slate-900 uppercase tracking-widest">Ready for Collection</h4>
@@ -200,7 +214,10 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ userLocation, onPayNow }) =>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Scan at counter to pay</p>
                             </div>
                             <button 
-                                onClick={() => handleFinalizePickup(order.id)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFinalizePickup(order);
+                                }}
                                 className="w-full py-5 bg-slate-900 text-white rounded-[20px] font-black text-[11px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all"
                             >
                                 Confirm Pickup & Pay

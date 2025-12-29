@@ -44,7 +44,11 @@ const AppContent: React.FC = () => {
   } | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
-  const simulationIntervals = useRef<Record<string, number>>({});
+  
+  // Simulation tracking references
+  const simulationTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const simulationIntervals = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const simulationLocks = useRef<Record<string, string>>({}); // Tracks { orderId: targetStatus }
 
   // Sync Current View with History API for Native-like Back-Button behavior
   useEffect(() => {
@@ -111,72 +115,99 @@ const AppContent: React.FC = () => {
     };
   }, [user.isAuthenticated, detectLocation, setUser]);
 
-  // Real-Time Simulation Engine for Demo Mode Tracking
+  // Unified Simulation Engine for Demo Mode
   useEffect(() => {
+    if (user.id !== 'demo-user') return;
+
     orders.forEach(async (order) => {
-      if (user.id === 'demo-user') {
-          if (order.status === 'Pending') {
-              setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
+      // Terminal states - cancel all simulations for this order
+      const isTerminal = order.status === 'Delivered' || order.status === 'Picked Up' || order.status === 'Cancelled' || order.status === 'Ready';
+      
+      if (isTerminal) {
+          if (simulationTimers.current[order.id]) {
+              clearTimeout(simulationTimers.current[order.id]);
+              delete simulationTimers.current[order.id];
           }
-
-          if (order.status === 'Preparing') {
-              if (order.mode === 'DELIVERY') {
-                  setTimeout(() => updateOrderStatus(order.id, 'On the way'), 6000);
-              } else {
-                  setTimeout(() => updateOrderStatus(order.id, 'Ready'), 6000);
-              }
+          if (simulationIntervals.current[order.id]) {
+              clearInterval(simulationIntervals.current[order.id]);
+              delete simulationIntervals.current[order.id];
           }
+          delete simulationLocks.current[order.id];
+          return;
+      }
 
-          if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
-              // Real-time tracking simulation for Demo
-              const userLat = user.location?.lat || 12.9716;
-              const userLng = user.location?.lng || 77.5946;
-              const storeLat = order.storeLocation?.lat || 12.9784;
-              const storeLng = order.storeLocation?.lng || 77.6408;
-              
-              const routeResult = await getRoute(storeLat, storeLng, userLat, userLng);
-              const path = routeResult.coordinates;
-              
-              if (path.length < 2) return;
+      // 1. Pending -> Preparing (3s)
+      if (order.status === 'Pending' && !simulationLocks.current[order.id]) {
+          simulationLocks.current[order.id] = 'Preparing';
+          simulationTimers.current[order.id] = setTimeout(() => {
+              updateOrderStatus(order.id, 'Preparing');
+              delete simulationLocks.current[order.id];
+          }, 3000);
+      }
 
-              let currentNodeIndex = 0;
-              let nodeProgress = 0;
-              const tickRate = 500; 
-              const simulationSpeed = 0.08; // High speed for demo purposes
+      // 2. Preparing -> Ready/On the way (6s)
+      if (order.status === 'Preparing' && !simulationLocks.current[order.id]) {
+          const nextStatus = order.mode === 'DELIVERY' ? 'On the way' : 'Ready';
+          simulationLocks.current[order.id] = nextStatus;
+          simulationTimers.current[order.id] = setTimeout(() => {
+              updateOrderStatus(order.id, nextStatus);
+              delete simulationLocks.current[order.id];
+          }, 6000);
+      }
 
-              simulationIntervals.current[order.id] = window.setInterval(() => {
-                if (currentNodeIndex >= path.length - 1) {
-                  window.clearInterval(simulationIntervals.current[order.id]);
-                  delete simulationIntervals.current[order.id];
-                  updateOrderStatus(order.id, 'Delivered');
-                  setDriverLocations(prev => { const next = { ...prev }; delete next[order.id]; return next; });
-                  showToast(`Demo order delivered! 🛵`);
-                  return;
-                }
+      // 3. On the way -> Delivered (Live Tracking)
+      if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
+          const userLat = user.location?.lat || 12.9716;
+          const userLng = user.location?.lng || 77.5946;
+          const storeLat = order.storeLocation?.lat || 12.9784;
+          const storeLng = order.storeLocation?.lng || 77.6408;
+          
+          const routeResult = await getRoute(storeLat, storeLng, userLat, userLng);
+          const path = routeResult.coordinates;
+          if (path.length < 2) return;
 
-                nodeProgress += simulationSpeed;
-                if (nodeProgress >= 1) { nodeProgress = 0; currentNodeIndex++; }
+          let currentNodeIndex = 0;
+          let nodeProgress = 0;
+          const tickRate = 500; 
+          const simulationSpeed = 0.12; 
 
-                if (currentNodeIndex < path.length - 1) {
-                  const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-                  const distRem = calculateHaversineDistance(pos[0], pos[1], userLat, userLng);
-                  const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
+          simulationIntervals.current[order.id] = setInterval(() => {
+            // Check status again inside interval to prevent overwriting
+            if (currentNodeIndex >= path.length - 1) {
+              clearInterval(simulationIntervals.current[order.id]);
+              delete simulationIntervals.current[order.id];
+              updateOrderStatus(order.id, 'Delivered');
+              setDriverLocations(prev => { const next = { ...prev }; delete next[order.id]; return next; });
+              showToast(`Demo order delivered! 🛵`);
+              return;
+            }
 
-                  setDriverLocations(prev => ({ 
-                    ...prev, 
-                    [order.id]: { 
-                      lat: pos[0], 
-                      lng: pos[1],
-                      distanceRemaining: distRem,
-                      timeRemaining: timeRem
-                    } 
-                  }));
-                }
-              }, tickRate);
-          }
+            nodeProgress += simulationSpeed;
+            if (nodeProgress >= 1) { nodeProgress = 0; currentNodeIndex++; }
+
+            if (currentNodeIndex < path.length - 1) {
+              const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
+              const distRem = calculateHaversineDistance(pos[0], pos[1], userLat, userLng);
+              const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
+
+              setDriverLocations(prev => ({ 
+                ...prev, 
+                [order.id]: { 
+                  lat: pos[0], 
+                  lng: pos[1],
+                  distanceRemaining: distRem,
+                  timeRemaining: timeRem
+                } 
+              }));
+            }
+          }, tickRate);
       }
     });
-  }, [orders, updateOrderStatus, setDriverLocations, showToast, user.location, user.id]);
+
+    return () => {
+        // Cleanup on unmount or user change
+    };
+  }, [orders, user.id, user.location, updateOrderStatus, setDriverLocations, showToast]);
 
   const handleLoginSuccess = (userData: UserState) => {
     setUser(userData);

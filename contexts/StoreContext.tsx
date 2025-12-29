@@ -149,7 +149,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 filter: `customer_id=eq.${user.id}` 
             }, (payload) => {
                 const updated = payload.new as any;
-                setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, status: updated.status } : o));
+                updateOrderStatus(updated.id, updated.status);
                 showToast(`Ecosystem Update: Order is ${updated.status} 🚀`);
             })
             .subscribe();
@@ -268,7 +268,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }).select().single();
 
           if (error) {
-              console.error("Cloud Sync Failed:", error.message);
+              console.error("Cloud Sync Failed:", error.message || error);
               showToast("Ecosystem Offline. Stored locally.");
           } else if (orderData) {
               order.id = orderData.id;
@@ -278,7 +278,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [user.id, showToast]);
 
   const updateOrderStatus = useCallback((orderId: string, status: Order['status']) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    console.log(`[StoreContext] Updating order ${orderId} to status: ${status}`);
+    setOrders(prev => {
+        const next = prev.map(o => {
+            if (o.id !== orderId) return o;
+            
+            // Terminal status logic: Once picked up/delivered, payment is PAID
+            const isComplete = status === 'Delivered' || status === 'Picked Up';
+            return { 
+                ...o, 
+                status, 
+                paymentStatus: isComplete ? 'PAID' as const : o.paymentStatus 
+            };
+        });
+        console.log(`[StoreContext] Orders updated. New status for ${orderId}:`, next.find(o => o.id === orderId)?.status);
+        return next;
+    });
   }, []);
 
   const resolveStoreSwitch = useCallback((accept: boolean) => {
