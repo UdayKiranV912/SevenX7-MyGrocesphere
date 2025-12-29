@@ -4,10 +4,9 @@ import { supabase, isSupabaseConfigured } from './supabase';
 
 export const registerUser = async (email: string, pass: string, name: string, phone: string) => {
     if (!isSupabaseConfigured) {
-        throw new Error("Backend not configured. Check VITE_SUPABASE_URL.");
+        throw new Error("Backend not configured.");
     }
 
-    // 1. Create the Auth User with metadata
     const { data, error: authError } = await supabase.auth.signUp({
         email,
         password: pass,
@@ -21,13 +20,12 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     });
 
     if (authError) {
-        console.error("Auth Signup Error:", authError);
+        console.error("Auth Signup Error:", authError.message || authError);
         throw authError;
     }
 
     if (data.user) {
-        // 2. Create the Public Profile linked to the Auth ID
-        // We use upsert to handle cases where the user might exist in Auth but profile was missed
+        // Sync with public.profiles table as per SQL schema
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
@@ -35,14 +33,11 @@ export const registerUser = async (email: string, pass: string, name: string, ph
             email: email,
             role: 'customer',
             verificationStatus: 'pending',
-            created_at: new Date().toISOString(),
-            last_sign_in: new Date().toISOString()
+            created_at: new Date().toISOString()
         }, { onConflict: 'id' });
         
         if (profileError) {
-            console.error("Critical Profile Sync Error:", profileError);
-            // We don't throw here to allow the user to at least reach the verification step
-            // but we log it for the developer. 
+            console.error("Profile table sync failed:", profileError.message || profileError);
         }
     }
 
@@ -52,26 +47,21 @@ export const registerUser = async (email: string, pass: string, name: string, ph
 export const submitAccessCode = async (userId: string, code: string) => {
     if (!isSupabaseConfigured) return true;
     
-    // Updates the profile with the code for admin review
     const { error } = await supabase
         .from('profiles')
         .update({ 
             submitted_verification_code: code,
-            verification_submitted_at: new Date().toISOString(),
-            verificationStatus: 'pending' // Ensure it stays pending for admin check
+            verification_submitted_at: new Date().toISOString() 
         })
         .eq('id', userId);
     
-    if (error) {
-        console.error("Verification Submission Error:", error);
-        throw error;
-    }
+    if (error) throw error;
     return true;
 };
 
 export const loginUser = async (email: string, pass: string): Promise<UserState> => {
     if (!isSupabaseConfigured) {
-        throw new Error("Supabase connection is not initialized.");
+        throw new Error("Ecosystem connection not initialized.");
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -81,33 +71,27 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 
     if (error) throw error;
 
-    // Fetch profile data set by Admin or from registration
-    const { data: profile, error: fetchError } = await supabase
+    const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .single();
 
-    if (fetchError) {
-        console.warn("Profile fetch failed, using Auth metadata fallback:", fetchError);
-    }
-
-    // Check verification status set by Super Admin
     if (!profile || profile.verificationStatus === 'pending') {
         throw new Error("AWAITING_APPROVAL");
     }
     
     if (profile.verificationStatus === 'rejected') {
-        throw new Error("Account rejected by administrator.");
+        throw new Error("Account access denied by administrator.");
     }
 
     return {
         isAuthenticated: true,
         id: data.user.id,
-        name: profile.full_name || data.user.user_metadata?.full_name || email.split('@')[0],
-        phone: profile.phone_number || data.user.user_metadata?.phone_number || '',
+        name: profile.full_name || email.split('@')[0],
+        phone: profile.phone_number || '',
         email: email,
-        location: null,
+        location: profile.current_lat ? { lat: profile.current_lat, lng: profile.current_lng } : null,
         address: profile.address || '',
         neighborhood: profile.neighborhood || '',
         savedCards: [],
@@ -118,13 +102,23 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 
 export const updateUserProfile = async (id: string, updates: any) => {
     if (!isSupabaseConfigured) return true;
+
+    // Convert keys to match SQL schema columns if necessary
+    const dbUpdates: any = { ...updates };
+    if (updates.location) {
+        dbUpdates.current_lat = updates.location.lat;
+        dbUpdates.current_lng = updates.location.lng;
+        delete dbUpdates.location;
+    }
+
     const { error } = await supabase
         .from('profiles')
         .update({
-            ...updates,
+            ...dbUpdates,
             updated_at: new Date().toISOString()
         })
         .eq('id', id);
+
     if (error) throw error;
     return true;
 };

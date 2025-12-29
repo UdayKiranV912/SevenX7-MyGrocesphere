@@ -13,8 +13,11 @@ export interface Product {
   id: string;
   name: string;
   price: number; 
+  mrp?: number; // Added from SQL schema
+  brand?: string; // Added from SQL schema
+  brand_logo_url?: string; // Added from SQL schema
   emoji: string;
-  imageUrl?: string; // New property for vector illustrations
+  imageUrl?: string; 
   category: string;
   description?: string;
   ingredients?: string;
@@ -109,8 +112,8 @@ export interface DriverLocationState {
   lat: number;
   lng: number;
   bearing?: number;
-  distanceRemaining?: number; // in meters
-  timeRemaining?: number; // in seconds
+  distanceRemaining?: number; 
+  timeRemaining?: number; 
 }
 
 export interface Order {

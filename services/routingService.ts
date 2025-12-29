@@ -11,35 +11,56 @@ export interface RouteData {
 export const AVG_DELIVERY_SPEED_MPS = 6.94;
 
 export const getRoute = async (startLat: number, startLng: number, endLat: number, endLng: number): Promise<RouteData> => {
+  // Defensive check for identical points to prevent division by zero or empty routes
+  if (startLat === endLat && startLng === endLng) {
+    return {
+      coordinates: [[startLat, startLng], [endLat, endLng]],
+      distance: 0,
+      duration: 0
+    };
+  }
+
+  const fallbackDist = calculateHaversineDistance(startLat, startLng, endLat, endLng);
+  const fallbackData: RouteData = {
+    coordinates: [[startLat, startLng], [endLat, endLng]],
+    distance: fallbackDist,
+    duration: fallbackDist / AVG_DELIVERY_SPEED_MPS
+  };
+
   try {
-    const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`);
-    if (!response.ok) throw new Error("Routing failed");
+    // We use a shorter timeout for the routing service to ensure the UI feels responsive even when the routing server is slow
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const response = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`,
+      { signal: controller.signal }
+    );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+        return fallbackData;
+    }
+    
     const data = await response.json();
     if (data.routes && data.routes.length > 0) {
       const route = data.routes[0];
-      return {
-        // OSRM returns [lng, lat], we need [lat, lng]
-        coordinates: route.geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]),
-        distance: route.distance,
-        duration: route.duration
-      };
+      // Ensure we have valid coordinates
+      if (route.geometry && route.geometry.coordinates && route.geometry.coordinates.length > 0) {
+        return {
+          // OSRM returns [lng, lat], we convert to [lat, lng] for Leaflet
+          coordinates: route.geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]),
+          distance: route.distance,
+          duration: route.duration
+        };
+      }
     }
     
-    // Fallback to straight line if OSRM fails
-    const dist = calculateHaversineDistance(startLat, startLng, endLat, endLng);
-    return {
-      coordinates: [[startLat, startLng], [endLat, endLng]],
-      distance: dist,
-      duration: dist / AVG_DELIVERY_SPEED_MPS
-    };
+    return fallbackData;
   } catch (error) {
-    console.error("Routing error:", error);
-    const dist = calculateHaversineDistance(startLat, startLng, endLat, endLng);
-    return {
-      coordinates: [[startLat, startLng], [endLat, endLng]],
-      distance: dist,
-      duration: dist / AVG_DELIVERY_SPEED_MPS
-    };
+    // Silent fallback to avoid alarming logs for what is a standard resilience strategy
+    return fallbackData;
   }
 };
 

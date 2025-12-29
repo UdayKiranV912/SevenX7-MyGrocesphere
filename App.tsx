@@ -46,7 +46,7 @@ const AppContent: React.FC = () => {
   const watchIdRef = useRef<number | null>(null);
   const simulationIntervals = useRef<Record<string, number>>({});
 
-  // Sync Current View with History API for Back-Button handling
+  // Sync Current View with History API for Native-like Back-Button behavior
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
@@ -111,9 +111,9 @@ const AppContent: React.FC = () => {
     };
   }, [user.isAuthenticated, detectLocation, setUser]);
 
+  // Real-Time Simulation Engine for Demo Mode Tracking
   useEffect(() => {
     orders.forEach(async (order) => {
-      // Local Simulation for DEMO user only
       if (user.id === 'demo-user') {
           if (order.status === 'Pending') {
               setTimeout(() => updateOrderStatus(order.id, 'Preparing'), 3000);
@@ -128,19 +128,21 @@ const AppContent: React.FC = () => {
           }
 
           if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
-              const targetLocation = user.location;
-              if (!targetLocation || !order.storeLocation) return;
+              // Real-time tracking simulation for Demo
+              const userLat = user.location?.lat || 12.9716;
+              const userLng = user.location?.lng || 77.5946;
+              const storeLat = order.storeLocation?.lat || 12.9784;
+              const storeLng = order.storeLocation?.lng || 77.6408;
               
-              const routeResult = await getRoute(order.storeLocation.lat, order.storeLocation.lng, targetLocation.lat, targetLocation.lng);
+              const routeResult = await getRoute(storeLat, storeLng, userLat, userLng);
               const path = routeResult.coordinates;
               
               if (path.length < 2) return;
 
               let currentNodeIndex = 0;
               let nodeProgress = 0;
-              
               const tickRate = 500; 
-              const simulationSpeed = 0.08;
+              const simulationSpeed = 0.08; // High speed for demo purposes
 
               simulationIntervals.current[order.id] = window.setInterval(() => {
                 if (currentNodeIndex >= path.length - 1) {
@@ -148,7 +150,7 @@ const AppContent: React.FC = () => {
                   delete simulationIntervals.current[order.id];
                   updateOrderStatus(order.id, 'Delivered');
                   setDriverLocations(prev => { const next = { ...prev }; delete next[order.id]; return next; });
-                  showToast(`Order delivered! 🛵`);
+                  showToast(`Demo order delivered! 🛵`);
                   return;
                 }
 
@@ -157,7 +159,7 @@ const AppContent: React.FC = () => {
 
                 if (currentNodeIndex < path.length - 1) {
                   const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-                  const distRem = calculateHaversineDistance(pos[0], pos[1], targetLocation.lat, targetLocation.lng);
+                  const distRem = calculateHaversineDistance(pos[0], pos[1], userLat, userLng);
                   const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
 
                   setDriverLocations(prev => ({ 
@@ -241,7 +243,7 @@ const AppContent: React.FC = () => {
     if (isLoading) {
       return (
         <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[11px] font-black text-emerald-600 tracking-tight leading-none uppercase animate-pulse">Syncing GPS...</span>
+           <span className="text-[11px] font-black text-emerald-600 tracking-tight leading-none uppercase animate-pulse">Ecosystem Sync...</span>
            <span className="text-[6px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Acquiring Sensor Data</span>
         </div>
       );
@@ -276,7 +278,7 @@ const AppContent: React.FC = () => {
     return (
       <div className="flex flex-col items-center animate-fade-in">
          <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase truncate max-w-[160px]">{user.neighborhood || 'Finding Marts'}</span>
-         {isLive && <span className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.3em] mt-1 animate-fade-in">Real-time Fix</span>}
+         {isLive && <span className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.3em] mt-1 animate-fade-in">Real-time Connection</span>}
       </div>
     );
   };
@@ -290,8 +292,8 @@ const AppContent: React.FC = () => {
             <div className="max-w-md mx-auto flex items-center justify-between w-full">
                 <div className="flex-shrink-0 flex justify-start items-center min-w-[70px] relative">
                     <SevenX7Logo size="xs" hideBrandName={true} />
-                    {/* Cloud Connectivity Pulse */}
-                    <div className={`absolute -right-1 -top-1 w-2 h-2 rounded-full border border-white ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} title={isBackendConnected ? 'Backend Connected' : 'Syncing...'}></div>
+                    {/* Live Backend Heartbeat Pulse */}
+                    <div className={`absolute -right-1 -top-1 w-2 h-2 rounded-full border border-white ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} title={isBackendConnected ? 'Cloud Ecosystem Active' : 'Syncing...'}></div>
                 </div>
                 <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform px-2 overflow-hidden" onClick={detectLocation}>
                     {renderHeaderCenter()}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../contexts/StoreContext';
-import { PRODUCT_FAMILIES, INITIAL_PRODUCTS } from '../constants';
+import { PRODUCT_FAMILIES } from '../constants';
 import { StickerProduct } from '../components/StickerProduct';
 import { ProductDetailsModal } from '../components/ProductDetailsModal';
 import { MapVisualizer } from '../components/MapVisualizer';
@@ -9,7 +9,7 @@ import { MapVisualizer } from '../components/MapVisualizer';
 export const ShopPage: React.FC = () => {
   const { 
     activeStore, setActiveStore, availableStores, cart, addToCart, updateQuantity,
-    viewingProduct, setViewingProduct, user, detectLocation, isLoading
+    viewingProduct, setViewingProduct, user, detectLocation, isLoading, storeProducts
   } = useStore();
   
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -19,11 +19,11 @@ export const ShopPage: React.FC = () => {
     if (!activeStore) return PRODUCT_FAMILIES;
     if (activeStore.availableProductIds.length > 0) {
         return PRODUCT_FAMILIES.filter(family => 
-            INITIAL_PRODUCTS.some(p => family.filter(p) && activeStore.availableProductIds.includes(p.id))
+            storeProducts.some(p => family.filter(p))
         );
     }
     return PRODUCT_FAMILIES;
-  }, [activeStore]);
+  }, [activeStore, storeProducts]);
 
   useEffect(() => {
     if (availableCategories.length > 0) {
@@ -34,12 +34,11 @@ export const ShopPage: React.FC = () => {
     }
   }, [availableCategories, selectedCategory]);
 
-  const filteredProducts = INITIAL_PRODUCTS.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredProducts = storeProducts.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.brand?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
     const family = PRODUCT_FAMILIES.find(f => f.id === selectedCategory);
     const matchesCategory = family ? family.filter(p) : true;
-    const isAvailable = !activeStore || activeStore?.availableProductIds.length === 0 || activeStore?.availableProductIds.includes(p.id);
-    return matchesSearch && matchesCategory && isAvailable;
+    return matchesSearch && matchesCategory;
   });
 
   if (!isLoading && availableStores.length === 0) {

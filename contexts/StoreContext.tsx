@@ -1,9 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types';
-import { MOCK_STORES } from '../constants';
+import { MOCK_STORES, INITIAL_PRODUCTS } from '../constants';
 import { fetchVerifiedStores, fetchStoreInventory } from '../services/storeService';
-import { fetchRealStores } from '../services/overpassService';
 import { supabase } from '../services/supabase';
 
 interface StoreContextType {
@@ -37,6 +36,7 @@ interface StoreContextType {
   setViewingProduct: (product: Product | null) => void;
   driverLocations: Record<string, { lat: number; lng: number; timeRemaining?: number; distanceRemaining?: number }>;
   setDriverLocations: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  storeProducts: Product[];
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -54,6 +54,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentView, setCurrentView] = useState<'SHOP' | 'CART' | 'ORDERS' | 'PROFILE'>('SHOP');
   const [orders, setOrders] = useState<Order[]>([]);
   const [availableStores, setAvailableStores] = useState<Store[]>([]);
+  const [storeProducts, setStoreProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [toast, setToast] = useState<{ message: string; show: boolean; action?: { label: string; onClick: () => void } }>({
     message: '',
     show: false,
@@ -92,21 +93,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadStores = useCallback(async (lat?: number, lng?: number) => {
     if (isLoading) return;
     setIsLoading(true);
-    
     const searchLat = lat || 12.9716;
     const searchLng = lng || 77.5946;
-
-    if (user.id === 'demo-user') {
-        try {
-            const realNearbyStores = await fetchRealStores(searchLat, searchLng);
-            setAvailableStores(realNearbyStores.length > 0 ? realNearbyStores : MOCK_STORES);
-        } catch (e) {
-            setAvailableStores(MOCK_STORES);
-        } finally {
-            setIsLoading(false);
-        }
-        return;
-    }
 
     try {
         const stores = await fetchVerifiedStores(searchLat, searchLng);
@@ -114,14 +102,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const inventory = await fetchStoreInventory(s.id);
             return { ...s, availableProductIds: inventory.map(i => i.product_id) };
         }));
-        setAvailableStores(hydratedStores);
+        setAvailableStores(hydratedStores.length > 0 ? hydratedStores : MOCK_STORES);
     } catch (e) {
-        console.error("Marts sync error:", e);
-        setAvailableStores([]);
+        setAvailableStores(MOCK_STORES);
     } finally {
         setIsLoading(false);
     }
-  }, [user.id, isLoading]);
+  }, [isLoading]);
+
+  // Load Inventory for Active Store
+  useEffect(() => {
+    if (activeStore && activeStore.id && !activeStore.id.startsWith('blr-')) {
+        fetchStoreInventory(activeStore.id).then(items => {
+            if (items.length > 0) {
+                setStoreProducts(items.map(i => i.details as Product));
+            }
+        });
+    } else {
+        setStoreProducts(INITIAL_PRODUCTS);
+    }
+  }, [activeStore]);
 
   useEffect(() => {
     if (user.isAuthenticated) {
@@ -131,7 +131,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
-        // Real-time table listeners for Cross-App Sync
         const storeChannel = supabase
             .channel('store-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => {
@@ -142,7 +141,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
 
         const orderChannel = supabase
-            .channel(`customer-orders-${user.id}`)
+            .channel(`order-sync-${user.id}`)
             .on('postgres_changes', { 
                 event: 'UPDATE', 
                 schema: 'public', 
@@ -151,51 +150,55 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }, (payload) => {
                 const updated = payload.new as any;
                 setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, status: updated.status } : o));
-                showToast(`Logistics Update: Order ${updated.id.slice(-4)} is ${updated.status}`);
+                showToast(`Ecosystem Update: Order is ${updated.status} 🚀`);
             })
             .subscribe();
 
-        // Real-time Driver Tracking Listener (Updated by separate Delivery App)
-        const trackingChannel = supabase
-            .channel('realtime-tracking')
+        const logisticsChannel = supabase
+            .channel('rider-tracking')
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
-                table: 'driver_locations'
+                table: 'profiles',
+                filter: 'role=eq.delivery_partner'
             }, (payload) => {
-                const data = payload.new as any;
-                setDriverLocations(prev => ({
-                    ...prev,
-                    [data.order_id]: {
-                        lat: data.lat,
-                        lng: data.lng,
-                        timeRemaining: data.time_remaining,
-                        distanceRemaining: data.distance_remaining
+                const rider = payload.new as any;
+                setOrders(prevOrders => {
+                    const activeOrder = prevOrders.find(o => o.status === 'On the way');
+                    if (activeOrder) {
+                        setDriverLocations(prevLocs => ({
+                            ...prevLocs,
+                            [activeOrder.id]: {
+                                lat: rider.current_lat,
+                                lng: rider.current_lng
+                            }
+                        }));
                     }
-                }));
+                    return prevOrders;
+                });
             })
             .subscribe();
 
         return () => { 
             supabase.removeChannel(storeChannel); 
             supabase.removeChannel(orderChannel);
-            supabase.removeChannel(trackingChannel);
+            supabase.removeChannel(logisticsChannel);
             setIsBackendConnected(false);
         };
     }
   }, [user.isAuthenticated, user.id, loadStores, showToast]);
 
   const detectLocation = useCallback(async () => {
-    if (!navigator.geolocation) { showToast("GPS Service Unavailable"); return; }
+    if (!navigator.geolocation) { showToast("GPS Disabled"); return; }
     setIsLoading(true);
-    
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
-          const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || 'Nearby Area';
+          const neighborhood = data.address?.suburb || data.address?.neighbourhood || 'Nearby Area';
+          
           setUser(prev => ({ 
             ...prev, 
             location: { lat: latitude, lng: longitude },
@@ -204,37 +207,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             address: data.display_name,
             neighborhood: neighborhood
           }));
+
+          if (userRef.current.isAuthenticated && userRef.current.id) {
+              await supabase.from('profiles').update({
+                  current_lat: latitude,
+                  current_lng: longitude,
+                  updated_at: new Date().toISOString()
+              }).eq('id', userRef.current.id);
+          }
         } catch (e) {
-          setUser(prev => ({ 
-            ...prev, 
-            location: { lat: latitude, lng: longitude }, 
-            accuracy,
-            isLiveGPS: true 
-          }));
-        } finally {
+          setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude }, accuracy, isLiveGPS: true }));
+        } finally { setIsLoading(false); }
+      },
+      () => { 
           setIsLoading(false);
-        }
+          if (userRef.current.id === 'demo-user') {
+              setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
+          }
       },
-      (error) => { 
-        setIsLoading(false); 
-        if (userRef.current.id === 'demo-user') {
-            setUser(prev => ({ 
-              ...prev, 
-              location: { lat: 12.9716, lng: 77.5946 }, 
-              neighborhood: 'Indiranagar',
-              isLiveGPS: false 
-            }));
-        } else {
-            showToast("Location Denied. Using fallback."); 
-        }
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   }, [showToast]);
 
   const addToCart = useCallback((product: Product, quantity = 1, brand?: string, price?: number, variant?: any) => {
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id && item.selectedBrand === (brand || 'Generic') && item.selectedVariant?.name === variant?.name);
+      const existing = prev.find(item => item.id === product.id && item.selectedBrand === (brand || 'Generic'));
       if (existing) {
         return prev.map(item => (item.id === product.id && item.selectedBrand === (brand || 'Generic')) ? { ...item, quantity: item.quantity + quantity } : item);
       }
@@ -258,7 +255,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addOrder = useCallback(async (order: Order) => {
       if (user.id && user.id !== 'demo-user') {
-          // Cross-App sync: Insert order into Supabase for Store/Delivery/Admin apps to see
           const { data: orderData, error } = await supabase.from('orders').insert({
               customer_id: user.id,
               store_id: order.items[0].storeId,
@@ -267,12 +263,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               total_amount: order.total,
               delivery_address: order.deliveryAddress,
               order_mode: order.mode,
-              payment_status: order.paymentStatus
+              payment_status: order.paymentStatus,
+              created_at: new Date().toISOString()
           }).select().single();
 
           if (error) {
-              console.error("Order Ecosystem Sync Failed:", error);
-              showToast("Cloud sync failed. Order stored locally.");
+              console.error("Cloud Sync Failed:", error.message);
+              showToast("Ecosystem Offline. Stored locally.");
           } else if (orderData) {
               order.id = orderData.id;
           }
@@ -295,7 +292,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       orderMode, setOrderMode, addToCart, updateQuantity, detectLocation,
       isLoading, isBackendConnected, toast, showToast, hideToast, currentView, setCurrentView,
       orders, setOrders, addOrder, updateOrderStatus, pendingStoreSwitch, resolveStoreSwitch,
-      viewingProduct, setViewingProduct, driverLocations, setDriverLocations
+      viewingProduct, setViewingProduct, driverLocations, setDriverLocations, storeProducts
     }}>
       {children}
     </StoreContext.Provider>
