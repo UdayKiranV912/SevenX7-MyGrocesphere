@@ -25,19 +25,20 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     }
 
     if (data.user) {
-        // Sync with public.profiles table as per SQL schema
+        // Create profile in the public.profiles table
+        // This is what the Super Admin sees and approves
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
             phone_number: phone,
             email: email,
             role: 'customer',
-            verificationStatus: 'pending',
+            verification_status: 'pending', // Explicitly set as pending for Admin review
             created_at: new Date().toISOString()
         }, { onConflict: 'id' });
         
         if (profileError) {
-            console.error("Profile table sync failed:", profileError.message || profileError);
+            console.error("Profile sync failed:", profileError.message || profileError);
         }
     }
 
@@ -77,11 +78,12 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         .eq('id', data.user.id)
         .single();
 
-    if (!profile || profile.verificationStatus === 'pending') {
+    // If no profile yet or still pending, trigger the awaiting approval UI
+    if (!profile || profile.verification_status === 'pending') {
         throw new Error("AWAITING_APPROVAL");
     }
     
-    if (profile.verificationStatus === 'rejected') {
+    if (profile.verification_status === 'rejected') {
         throw new Error("Account access denied by administrator.");
     }
 
@@ -95,7 +97,7 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         address: profile.address || '',
         neighborhood: profile.neighborhood || '',
         savedCards: [],
-        verificationStatus: profile.verificationStatus,
+        verificationStatus: profile.verification_status,
         isLiveGPS: false
     };
 };
@@ -103,7 +105,6 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 export const updateUserProfile = async (id: string, updates: any) => {
     if (!isSupabaseConfigured) return true;
 
-    // Convert keys to match SQL schema columns if necessary
     const dbUpdates: any = { ...updates };
     if (updates.location) {
         dbUpdates.current_lat = updates.location.lat;

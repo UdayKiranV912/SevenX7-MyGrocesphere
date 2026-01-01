@@ -11,6 +11,7 @@ import { ShopPage } from './pages/Shop';
 import { MyOrders } from './components/MyOrders';
 import { ProfilePage } from './pages/Profile';
 import { getRoute, interpolatePosition, calculateHaversineDistance, AVG_DELIVERY_SPEED_MPS } from './services/routingService';
+import { supabase } from './services/supabase';
 
 const AppContent: React.FC = () => {
   const { 
@@ -22,10 +23,11 @@ const AppContent: React.FC = () => {
     isLoading, isBackendConnected,
     toast, hideToast, showToast,
     currentView, setCurrentView,
-    orders, addOrder, updateOrderStatus,
+    orders, addOrder, updateOrder, updateOrderStatus,
     driverLocations, setDriverLocations
   } = useStore();
 
+  const [initializing, setInitializing] = useState(true);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [showPaymentGateway, setShowPaymentGateway] = useState(false);
   const [animateCart, setAnimateCart] = useState(false);
@@ -48,9 +50,109 @@ const AppContent: React.FC = () => {
   // Simulation tracking references
   const simulationTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const simulationIntervals = useRef<Record<string, ReturnType<typeof setInterval>>>({});
-  const simulationLocks = useRef<Record<string, string>>({}); // Tracks { orderId: targetStatus }
+  const simulationLocks = useRef<Record<string, string>>({}); 
 
-  // Sync Current View with History API for Native-like Back-Button behavior
+  /* ============================================================
+     1️⃣ INITIALIZE ECOSYSTEM SESSION & REALTIME VERIFICATION
+  ============================================================ */
+  useEffect(() => {
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile && !error) {
+            const isVerified = profile.verification_status === 'verified';
+            
+            setUser({
+              isAuthenticated: isVerified,
+              id: profile.id,
+              name: profile.full_name,
+              phone: profile.phone_number,
+              email: profile.email,
+              location: profile.current_lat ? { lat: profile.current_lat, lng: profile.current_lng } : null,
+              address: profile.address,
+              neighborhood: profile.neighborhood,
+              verificationStatus: profile.verification_status,
+              isLiveGPS: false
+            });
+          }
+        } catch (err) {
+          console.error("Profile sync failed:", err);
+        }
+      }
+      setInitializing(false);
+    };
+
+    initSession();
+  }, [setUser]);
+
+  /* ============================================================
+     2️⃣ REALTIME VERIFICATION MONITOR
+  ============================================================ */
+  useEffect(() => {
+    if (!user.id || user.id === 'demo-user' || user.isAuthenticated) return;
+
+    // Listen for verification status changes in real-time
+    const channel = supabase
+      .channel(`verification-sync-${user.id}`)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'profiles', 
+        filter: `id=eq.${user.id}` 
+      }, (payload) => {
+        const updatedProfile = payload.new as any;
+        if (updatedProfile.verification_status === 'verified') {
+          showToast("Account Approved! Welcome to Grocesphere 🚀");
+          setUser(prev => ({ 
+            ...prev, 
+            isAuthenticated: true, 
+            verificationStatus: 'verified' 
+          }));
+          setCurrentView('SHOP');
+        } else if (updatedProfile.verification_status === 'rejected') {
+          setUser(prev => ({ ...prev, verificationStatus: 'rejected' }));
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user.id, user.isAuthenticated, setUser, setCurrentView, showToast]);
+
+  /* ============================================================
+     3️⃣ REAL-TIME ORDERS SUBSCRIPTIONS
+  ============================================================ */
+  useEffect(() => {
+    if (!user.id || user.id === 'demo-user' || !user.isAuthenticated) return;
+
+    const channel = supabase
+      .channel(`customer-orders-realtime-${user.id}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders', 
+        filter: `customer_id=eq.${user.id}` 
+      }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          updateOrder(payload.new);
+          showToast(`Ecosystem Update: Order is ${payload.new.status} 🚀`);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user.id, user.isAuthenticated, updateOrder, showToast]);
+
+  /* ============================================================
+     4️⃣ NAVIGATION & UI SYNC
+  ============================================================ */
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
@@ -104,7 +206,6 @@ const AppContent: React.FC = () => {
                 }));
             },
             (err) => {
-               console.warn("Watch GPS error:", err);
                setUser(prev => ({ ...prev, isLiveGPS: false }));
             },
             { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
@@ -115,12 +216,13 @@ const AppContent: React.FC = () => {
     };
   }, [user.isAuthenticated, detectLocation, setUser]);
 
-  // Unified Simulation Engine for Demo Mode
+  /* ============================================================
+     5️⃣ DEMO SIMULATION ENGINE
+  ============================================================ */
   useEffect(() => {
     if (user.id !== 'demo-user') return;
 
     orders.forEach(async (order) => {
-      // Terminal states - cancel all simulations for this order
       const isTerminal = order.status === 'Delivered' || order.status === 'Picked Up' || order.status === 'Cancelled' || order.status === 'Ready';
       
       if (isTerminal) {
@@ -136,7 +238,6 @@ const AppContent: React.FC = () => {
           return;
       }
 
-      // 1. Pending -> Preparing (3s)
       if (order.status === 'Pending' && !simulationLocks.current[order.id]) {
           simulationLocks.current[order.id] = 'Preparing';
           simulationTimers.current[order.id] = setTimeout(() => {
@@ -145,7 +246,6 @@ const AppContent: React.FC = () => {
           }, 3000);
       }
 
-      // 2. Preparing -> Ready/On the way (6s)
       if (order.status === 'Preparing' && !simulationLocks.current[order.id]) {
           const nextStatus = order.mode === 'DELIVERY' ? 'On the way' : 'Ready';
           simulationLocks.current[order.id] = nextStatus;
@@ -155,7 +255,6 @@ const AppContent: React.FC = () => {
           }, 6000);
       }
 
-      // 3. On the way -> Delivered (Live Tracking)
       if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
           const userLat = user.location?.lat || 12.9716;
           const userLng = user.location?.lng || 77.5946;
@@ -172,7 +271,6 @@ const AppContent: React.FC = () => {
           const simulationSpeed = 0.12; 
 
           simulationIntervals.current[order.id] = setInterval(() => {
-            // Check status again inside interval to prevent overwriting
             if (currentNodeIndex >= path.length - 1) {
               clearInterval(simulationIntervals.current[order.id]);
               delete simulationIntervals.current[order.id];
@@ -203,33 +301,11 @@ const AppContent: React.FC = () => {
           }, tickRate);
       }
     });
-
-    return () => {
-        // Cleanup on unmount or user change
-    };
   }, [orders, user.id, user.location, updateOrderStatus, setDriverLocations, showToast]);
 
-  const handleLoginSuccess = (userData: UserState) => {
-    setUser(userData);
-    window.history.replaceState({ view: 'SHOP' }, '');
-    setCurrentView('SHOP');
-    detectLocation();
-  };
-
-  const handleDemoLogin = () => {
-    setUser({
-      isAuthenticated: true,
-      id: 'demo-user',
-      name: 'Demo User',
-      phone: '9999999999',
-      location: null,
-      isLiveGPS: false,
-      savedCards: []
-    });
-    window.history.replaceState({ view: 'SHOP' }, '');
-    setCurrentView('SHOP');
-  };
-
+  /* ============================================================
+     6️⃣ ORDER LIFECYCLE
+  ============================================================ */
   const handleProceedToPay = (details: { deliveryType: DeliveryType; scheduledTime?: string; isPayLater?: boolean; splits: any }) => {
       setPendingOrderDetails({ ...details, storeName: activeStore?.name, mode: orderMode });
       setShowPaymentGateway(true);
@@ -257,59 +333,70 @@ const AppContent: React.FC = () => {
         deliveryAddress: deliveryAddress,
         splits: pendingOrderDetails.splits
     };
+    
     await addOrder(order);
     clearCart();
     setShowPaymentGateway(false);
     setPendingOrderDetails(null);
     navigateTo('ORDERS');
+    showToast("Order Placed Successfully! 🛒");
   };
 
-  const canShowNav = !showPaymentGateway;
+  if (initializing) {
+    return (
+      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
+        <SevenX7Logo size="large" hideBrandName={true} />
+        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mt-12 mb-4"></div>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Ecosystem Awakening...</p>
+      </div>
+    );
+  }
 
+  // If user is not authenticated OR they are pending verification
   if (!user.isAuthenticated) {
-    return <Auth onLoginSuccess={handleLoginSuccess} onDemoLogin={handleDemoLogin} />;
+    return (
+      <Auth 
+        onLoginSuccess={(userData) => { setUser(userData); navigateTo('SHOP'); }} 
+        onDemoLogin={() => {
+          setUser({
+            isAuthenticated: true,
+            id: 'demo-user',
+            name: 'Demo User',
+            phone: '9999999999',
+            location: null,
+            isLiveGPS: false,
+            savedCards: []
+          });
+          navigateTo('SHOP');
+        }} 
+      />
+    );
   }
 
   const renderHeaderCenter = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[11px] font-black text-emerald-600 tracking-tight leading-none uppercase animate-pulse">Ecosystem Sync...</span>
-           <span className="text-[6px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Acquiring Sensor Data</span>
-        </div>
-      );
-    }
+    if (isLoading) return (
+      <div className="flex flex-col items-center animate-fade-in">
+         <span className="text-[11px] font-black text-emerald-600 tracking-tight leading-none uppercase animate-pulse">Syncing...</span>
+      </div>
+    );
 
-    if (!isLoading && availableStores.length === 0) {
-      return (
-        <div className="flex flex-col items-center animate-fade-in">
-           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase">Searching Marts</span>
-        </div>
-      );
-    }
-
-    const isLive = user.isLiveGPS && user.id !== 'demo-user';
-
-    if (activeStore) {
-      return (
-        <div className="flex flex-col items-center animate-fade-in">
-           <div className="flex items-center gap-1.5 mb-0.5">
-             <div className={`w-1 h-1 rounded-full ${isLive ? 'bg-emerald-500 animate-ping' : 'bg-slate-300'}`}></div>
-             <span className={`text-[6px] font-black uppercase tracking-[0.2em] ${isLive ? 'text-emerald-500' : 'text-slate-400'}`}>
-                {isLive ? 'Live Precision' : 'Shopping At'}
-             </span>
-           </div>
-           <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[140px]">
-              {activeStore.name}
+    if (activeStore) return (
+      <div className="flex flex-col items-center animate-fade-in">
+         <div className="flex items-center gap-1.5 mb-0.5">
+           <div className={`w-1 h-1 rounded-full ${user.isLiveGPS ? 'bg-emerald-500 animate-ping' : 'bg-slate-300'}`}></div>
+           <span className={`text-[6px] font-black uppercase tracking-[0.2em] ${user.isLiveGPS ? 'text-emerald-500' : 'text-slate-400'}`}>
+              {user.isLiveGPS ? 'Live Now' : 'Shopping At'}
            </span>
-        </div>
-      );
-    }
+         </div>
+         <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[140px]">
+            {activeStore.name}
+         </span>
+      </div>
+    );
 
     return (
       <div className="flex flex-col items-center animate-fade-in">
          <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase truncate max-w-[160px]">{user.neighborhood || 'Finding Marts'}</span>
-         {isLive && <span className="text-[6px] font-black text-emerald-500 uppercase tracking-[0.3em] mt-1 animate-fade-in">Real-time Connection</span>}
       </div>
     );
   };
@@ -323,8 +410,7 @@ const AppContent: React.FC = () => {
             <div className="max-w-md mx-auto flex items-center justify-between w-full">
                 <div className="flex-shrink-0 flex justify-start items-center min-w-[70px] relative">
                     <SevenX7Logo size="xs" hideBrandName={true} />
-                    {/* Live Backend Heartbeat Pulse */}
-                    <div className={`absolute -right-1 -top-1 w-2 h-2 rounded-full border border-white ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} title={isBackendConnected ? 'Cloud Ecosystem Active' : 'Syncing...'}></div>
+                    <div className={`absolute -right-1 -top-1 w-2 h-2 rounded-full border border-white ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                 </div>
                 <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform px-2 overflow-hidden" onClick={detectLocation}>
                     {renderHeaderCenter()}
@@ -359,7 +445,7 @@ const AppContent: React.FC = () => {
         )}
       </main>
 
-      {canShowNav && (
+      {!showPaymentGateway && (
         <nav className="fixed bottom-0 left-0 right-0 z-40 safe-bottom border-t border-slate-100 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
            <div className="max-w-md mx-auto flex justify-around items-center h-13 px-2">
             {[

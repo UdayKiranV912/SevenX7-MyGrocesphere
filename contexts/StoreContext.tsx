@@ -29,6 +29,7 @@ interface StoreContextType {
   orders: Order[];
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   addOrder: (order: Order) => Promise<void>;
+  updateOrder: (order: any) => void;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   pendingStoreSwitch: Store | null;
   resolveStoreSwitch: (accept: boolean) => void;
@@ -140,53 +141,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (status === 'SUBSCRIBED') setIsBackendConnected(true);
             });
 
-        const orderChannel = supabase
-            .channel(`order-sync-${user.id}`)
-            .on('postgres_changes', { 
-                event: 'UPDATE', 
-                schema: 'public', 
-                table: 'orders', 
-                filter: `customer_id=eq.${user.id}` 
-            }, (payload) => {
-                const updated = payload.new as any;
-                updateOrderStatus(updated.id, updated.status);
-                showToast(`Ecosystem Update: Order is ${updated.status} 🚀`);
-            })
-            .subscribe();
-
-        const logisticsChannel = supabase
-            .channel('rider-tracking')
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'profiles',
-                filter: 'role=eq.delivery_partner'
-            }, (payload) => {
-                const rider = payload.new as any;
-                setOrders(prevOrders => {
-                    const activeOrder = prevOrders.find(o => o.status === 'On the way');
-                    if (activeOrder) {
-                        setDriverLocations(prevLocs => ({
-                            ...prevLocs,
-                            [activeOrder.id]: {
-                                lat: rider.current_lat,
-                                lng: rider.current_lng
-                            }
-                        }));
-                    }
-                    return prevOrders;
-                });
-            })
-            .subscribe();
-
         return () => { 
             supabase.removeChannel(storeChannel); 
-            supabase.removeChannel(orderChannel);
-            supabase.removeChannel(logisticsChannel);
             setIsBackendConnected(false);
         };
     }
-  }, [user.isAuthenticated, user.id, loadStores, showToast]);
+  }, [user.isAuthenticated, user.id, loadStores]);
 
   const detectLocation = useCallback(async () => {
     if (!navigator.geolocation) { showToast("GPS Disabled"); return; }
@@ -254,37 +214,66 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const addOrder = useCallback(async (order: Order) => {
+      // Direct insertion for real-time users
       if (user.id && user.id !== 'demo-user') {
-          const { data: orderData, error } = await supabase.from('orders').insert({
-              customer_id: user.id,
-              store_id: order.items[0].storeId,
-              status: 'placed',
-              items: order.items,
-              total_amount: order.total,
-              delivery_address: order.deliveryAddress,
-              order_mode: order.mode,
-              payment_status: order.paymentStatus,
-              created_at: new Date().toISOString()
-          }).select().single();
+          try {
+              const { data: orderData, error: orderError } = await supabase.from('orders').insert({
+                  customer_id: user.id,
+                  store_id: order.items[0].storeId,
+                  status: 'placed',
+                  total_amount: order.total,
+                  delivery_address: order.deliveryAddress,
+                  order_mode: order.mode,
+                  payment_status: order.paymentStatus,
+                  created_at: new Date().toISOString()
+              }).select().single();
 
-          if (error) {
-              console.error("Cloud Sync Failed:", error.message || error);
-              showToast("Ecosystem Offline. Stored locally.");
-          } else if (orderData) {
-              order.id = orderData.id;
+              if (orderError) throw orderError;
+
+              if (orderData) {
+                  order.id = orderData.id;
+                  // Handle order items for Super Admin itemized view
+                  const { error: itemsError } = await supabase.from('order_items').insert(
+                      order.items.map(item => ({
+                          order_id: orderData.id,
+                          product_id: item.originalProductId,
+                          unit_price: item.price,
+                          quantity: item.quantity
+                      }))
+                  );
+                  if (itemsError) console.error("Item sync failed:", itemsError);
+              }
+          } catch (e: any) {
+              console.error("Cloud Sync Failed:", e.message || e);
+              showToast("Ecosystem Offline. Order saved locally.");
           }
       }
-      setOrders(prev => [order, ...prev]);
+      
+      // Update local state
+      setOrders(prev => {
+          if (prev.find(o => o.id === order.id)) return prev;
+          return [order, ...prev];
+      });
   }, [user.id, showToast]);
 
+  const updateOrder = useCallback((updatedOrder: any) => {
+      setOrders(prev => prev.map(o => {
+          if (o.id === updatedOrder.id) {
+              return { 
+                  ...o, 
+                  status: updatedOrder.status,
+                  paymentStatus: updatedOrder.payment_status === 'PAID' ? 'PAID' : o.paymentStatus
+              };
+          }
+          return o;
+      }));
+  }, []);
+
   const updateOrderStatus = useCallback((orderId: string, status: Order['status']) => {
-    console.log(`[StoreContext] updateOrderStatus: ${orderId} -> ${status}`);
     setOrders(prev => {
         const isComplete = status === 'Delivered' || status === 'Picked Up';
         return prev.map(o => {
             if (o.id !== orderId) return o;
-            
-            // Allow manual transitions from Ready even if it's terminal for simulation
             return { 
                 ...o, 
                 status, 
@@ -304,7 +293,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       user, setUser, cart, setCart, clearCart, activeStore, setActiveStore: setManualStore, availableStores,
       orderMode, setOrderMode, addToCart, updateQuantity, detectLocation,
       isLoading, isBackendConnected, toast, showToast, hideToast, currentView, setCurrentView,
-      orders, setOrders, addOrder, updateOrderStatus, pendingStoreSwitch, resolveStoreSwitch,
+      orders, setOrders, addOrder, updateOrder, updateOrderStatus, pendingStoreSwitch, resolveStoreSwitch,
       viewingProduct, setViewingProduct, driverLocations, setDriverLocations, storeProducts
     }}>
       {children}
