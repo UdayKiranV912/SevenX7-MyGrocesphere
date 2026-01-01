@@ -1,9 +1,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Connection details updated to use dynamic process.env if available, otherwise falling back to provided defaults
-const supabaseUrl = (process.env as any).VITE_SUPABASE_URL || 'https://tsadkqjvcdhjdqrwurbx.supabase.co';
-const supabaseAnonKey = (process.env as any).VITE_SUPABASE_ANON_KEY || (process.env as any).VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY || 'sb_publishable_CZnad3HNfL14Ov2bKpu7nQ_bGyh7jmr';
+// Connection details updated to the user's specific project
+const supabaseUrl = 'https://tobdllelnheqtnnmaxxr.supabase.co';
+const supabaseAnonKey = 'sb_publishable_Bgj45OANboOHclsXDeDpEA_6D_YLpIR';
 
 export const isSupabaseConfigured = !!supabaseUrl && !supabaseUrl.includes('placeholder');
 

@@ -67,7 +67,7 @@ const AppContent: React.FC = () => {
             .single();
 
           if (profile && !error) {
-            const isApproved = profile.verification_status === 'approved' || profile.verification_status === 'verified';
+            const isApproved = profile.verification_status === 'approved';
             
             setUser({
               isAuthenticated: isApproved,
@@ -81,13 +81,9 @@ const AppContent: React.FC = () => {
               verificationStatus: profile.verification_status,
               isLiveGPS: false
             });
-          } else {
-            // No profile found but session exists, could happen if sync failed
-            setUser(prev => ({ ...prev, isAuthenticated: false }));
           }
         } catch (err) {
-          console.error("Profile sync failed:", err);
-          setUser(prev => ({ ...prev, isAuthenticated: false }));
+          console.error("Profile initialization failed:", err);
         }
       }
       setInitializing(false);
@@ -97,13 +93,13 @@ const AppContent: React.FC = () => {
   }, [setUser]);
 
   /* ============================================================
-     2️⃣ REALTIME VERIFICATION MONITOR
+     2️⃣ REALTIME PROFILE SYNC (Approval Unlock)
   ============================================================ */
   useEffect(() => {
     if (!user.id || user.id === 'demo-user' || user.isAuthenticated) return;
 
     const channel = supabase
-      .channel(`verification-sync-${user.id}`)
+      .channel(`profile-verification-sync-${user.id}`)
       .on('postgres_changes', { 
         event: 'UPDATE', 
         schema: 'public', 
@@ -111,16 +107,17 @@ const AppContent: React.FC = () => {
         filter: `id=eq.${user.id}` 
       }, (payload) => {
         const updatedProfile = payload.new as any;
-        if (updatedProfile.verification_status === 'approved' || updatedProfile.verification_status === 'verified') {
-          showToast("Account Approved! Welcome to Grocesphere 🚀");
+        if (updatedProfile.verification_status === 'approved') {
+          showToast("Account Approved! Welcome to the Ecosystem 🚀");
           setUser(prev => ({ 
             ...prev, 
             isAuthenticated: true, 
-            verificationStatus: updatedProfile.verification_status 
+            verificationStatus: 'approved' 
           }));
           setCurrentView('SHOP');
         } else if (updatedProfile.verification_status === 'rejected') {
           setUser(prev => ({ ...prev, verificationStatus: 'rejected' }));
+          showToast("Registration rejected. Please contact support.");
         }
       })
       .subscribe();
@@ -144,7 +141,7 @@ const AppContent: React.FC = () => {
       }, (payload) => {
         if (payload.eventType === 'UPDATE') {
           updateOrder(payload.new);
-          showToast(`Order Updated: ${payload.new.status} 📦`);
+          showToast(`Order Status Update: ${payload.new.status} 📦`);
         }
       })
       .subscribe();
@@ -359,11 +356,11 @@ const AppContent: React.FC = () => {
     return (
       <Auth 
         onLoginSuccess={(userData) => { 
-          if (userData.verificationStatus === 'approved' || userData.verificationStatus === 'verified') {
+          if (userData.verificationStatus === 'approved') {
             setUser(userData); 
             navigateTo('SHOP'); 
           } else {
-            // Show awaiting screen
+            // User logged in but status is still pending/verified
             setUser({ ...userData, isAuthenticated: false });
           }
         }} 

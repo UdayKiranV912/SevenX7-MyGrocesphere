@@ -18,7 +18,8 @@ interface PaymentGatewayProps {
   orderMode?: 'DELIVERY' | 'PICKUP';
 }
 
-const ADMIN_UPI_ID = 'sevenx7.admin@okaxis';
+// User-specified Admin UPI for Escrow
+const ADMIN_UPI_ID = 'ADMIN_UPI@okicici';
 
 type GatewayStep = 'CONNECTING' | 'SELECT' | 'PROCESSING' | 'WAITING_VERIFICATION' | 'ADMIN_CHECKING' | 'POP_CONFIRM' | 'SUCCESS' | 'FAILURE';
 
@@ -55,15 +56,15 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
   const handleUpiIntent = (appName: string) => {
     setSelectedUpiApp(appName);
     
-    // Construct standard UPI intent URL for mobile redirect
-    const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=SevenX7%20Admin&am=${amount}&cu=INR&tn=Grocesphere%20Order`;
+    // Construct standard UPI intent URL for mobile redirect as requested
+    const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=SevenX7&am=${amount}&cu=INR&tn=Grocesphere%20Order`;
     
     if (!isDemo) {
         // Redirect to UPI app
         window.location.href = upiUrl;
         
         // Move to verification screen after a delay to allow app switching
-        setTimeout(() => setStep('WAITING_VERIFICATION'), 2000);
+        setTimeout(() => setStep('WAITING_VERIFICATION'), 2500);
     } else {
         // Demo Mode Simulation
         setStep('PROCESSING');
@@ -89,7 +90,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
           
           if (isFailed) {
               setStep('FAILURE');
-              setErrorMsg('Payment verification failed. Ensure you used the correct Transaction ID.');
+              setErrorMsg('Verification failed. Admin could not match this ID with bank receipts.');
           } else {
               setStep('SUCCESS');
               timerRef.current = setTimeout(() => triggerSuccess(), 1500);
@@ -125,7 +126,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
               <div>
                 <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Verify Payment</h3>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-2">
-                    Enter the Transaction ID / Ref No. from your UPI app for Super Admin verification.
+                    Enter the Transaction ID / Ref No. from your UPI app for Admin validation.
                 </p>
               </div>
 
@@ -175,7 +176,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                   <svg className="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
               </div>
               <h2 className="text-3xl font-black mb-3 uppercase tracking-tighter">Verified</h2>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Funds Received by Super Admin</p>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Funds Secured by Ecosystem Admin</p>
           </div>
       );
 
@@ -216,7 +217,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                   )}
 
                   <div className="space-y-3 pt-2">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Digital UPI (to Super Admin)</h3>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Digital UPI (to Admin)</h3>
                       {['Google Pay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
                           <button 
                             key={app} 
@@ -234,7 +235,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
                   <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 mt-4">
                       <p className="text-[8px] font-black text-emerald-700 uppercase tracking-[0.2em] leading-relaxed text-center">
-                          Your digital payment will be escrowed by <strong className="text-slate-900">Super Admin</strong> and released to the mart upon delivery verification.
+                          Payments are escrowed by <strong className="text-slate-900">SevenX7 Admin</strong> and released to the mart upon delivery verification.
                       </p>
                   </div>
               </div>

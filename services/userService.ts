@@ -25,6 +25,7 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     }
 
     if (data.user) {
+        // Create profile in the public.profiles table
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
@@ -76,7 +77,7 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         .eq('id', data.user.id)
         .single();
 
-    if (profileError || !profile || profile.verification_status === 'pending') {
+    if (profileError || !profile || profile.verification_status !== 'approved') {
         throw new Error("AWAITING_APPROVAL");
     }
     

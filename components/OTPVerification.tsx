@@ -33,7 +33,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
     if (authMode === 'AWAITING_APPROVAL' && currentUserId) {
         // Real-time listener for the user's own profile approval
         const profileSubscription = supabase
-            .channel(`approval-${currentUserId}`)
+            .channel(`approval-poll-${currentUserId}`)
             .on('postgres_changes', { 
                 event: 'UPDATE', 
                 schema: 'public', 
@@ -41,7 +41,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                 filter: `id=eq.${currentUserId}` 
             }, async (payload) => {
                 const updated = payload.new as any;
-                if (updated.verificationStatus === 'verified') {
+                if (updated.verification_status === 'approved') {
                     // Approved! Automatically attempt login
                     try {
                         const user = await loginUser(formData.email, formData.password);
@@ -53,17 +53,23 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
             })
             .subscribe();
 
-        // Heartbeat fallback (polls every 15s in case websocket drops)
+        // Heartbeat fallback (polls every 10s in case websocket drops)
         const heartbeat = setInterval(async () => {
             try {
-                const user = await loginUser(formData.email, formData.password);
-                onLoginSuccess(user);
-            } catch (e: any) {
-                if (e.message !== "AWAITING_APPROVAL") {
-                    // Some other error, stop heartbeat
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('verification_status')
+                    .eq('id', currentUserId)
+                    .single();
+                
+                if (profile?.verification_status === 'approved') {
+                    const user = await loginUser(formData.email, formData.password);
+                    onLoginSuccess(user);
                 }
+            } catch (e: any) {
+                // Silently ignore poll errors
             }
-        }, 15000);
+        }, 10000);
 
         return () => {
             supabase.removeChannel(profileSubscription);
@@ -199,7 +205,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-3 px-2 leading-loose">
                                     Profile received at HQ. <br/>
                                     <span className="text-emerald-600">Super Admin</span> is validating your credentials. <br/>
-                                    <span className="text-[8px] opacity-40">System will auto-unlock on approval</span>
+                                    <span className="text-[8px] opacity-40 uppercase">System will auto-unlock on approval</span>
                                 </p>
                             </div>
                             <div className="flex flex-col gap-3">
