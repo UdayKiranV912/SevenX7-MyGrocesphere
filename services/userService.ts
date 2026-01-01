@@ -25,15 +25,13 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     }
 
     if (data.user) {
-        // Create profile in the public.profiles table
-        // This is what the Super Admin sees and approves
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
             phone_number: phone,
             email: email,
             role: 'customer',
-            verification_status: 'pending', // Explicitly set as pending for Admin review
+            verification_status: 'pending', 
             created_at: new Date().toISOString()
         }, { onConflict: 'id' });
         
@@ -72,14 +70,13 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 
     if (error) throw error;
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .single();
 
-    // If no profile yet or still pending, trigger the awaiting approval UI
-    if (!profile || profile.verification_status === 'pending') {
+    if (profileError || !profile || profile.verification_status === 'pending') {
         throw new Error("AWAITING_APPROVAL");
     }
     

@@ -47,7 +47,6 @@ const AppContent: React.FC = () => {
 
   const watchIdRef = useRef<number | null>(null);
   
-  // Simulation tracking references
   const simulationTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const simulationIntervals = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const simulationLocks = useRef<Record<string, string>>({}); 
@@ -68,10 +67,10 @@ const AppContent: React.FC = () => {
             .single();
 
           if (profile && !error) {
-            const isVerified = profile.verification_status === 'verified';
+            const isApproved = profile.verification_status === 'approved' || profile.verification_status === 'verified';
             
             setUser({
-              isAuthenticated: isVerified,
+              isAuthenticated: isApproved,
               id: profile.id,
               name: profile.full_name,
               phone: profile.phone_number,
@@ -82,9 +81,13 @@ const AppContent: React.FC = () => {
               verificationStatus: profile.verification_status,
               isLiveGPS: false
             });
+          } else {
+            // No profile found but session exists, could happen if sync failed
+            setUser(prev => ({ ...prev, isAuthenticated: false }));
           }
         } catch (err) {
           console.error("Profile sync failed:", err);
+          setUser(prev => ({ ...prev, isAuthenticated: false }));
         }
       }
       setInitializing(false);
@@ -99,7 +102,6 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!user.id || user.id === 'demo-user' || user.isAuthenticated) return;
 
-    // Listen for verification status changes in real-time
     const channel = supabase
       .channel(`verification-sync-${user.id}`)
       .on('postgres_changes', { 
@@ -109,12 +111,12 @@ const AppContent: React.FC = () => {
         filter: `id=eq.${user.id}` 
       }, (payload) => {
         const updatedProfile = payload.new as any;
-        if (updatedProfile.verification_status === 'verified') {
+        if (updatedProfile.verification_status === 'approved' || updatedProfile.verification_status === 'verified') {
           showToast("Account Approved! Welcome to Grocesphere 🚀");
           setUser(prev => ({ 
             ...prev, 
             isAuthenticated: true, 
-            verificationStatus: 'verified' 
+            verificationStatus: updatedProfile.verification_status 
           }));
           setCurrentView('SHOP');
         } else if (updatedProfile.verification_status === 'rejected') {
@@ -142,7 +144,7 @@ const AppContent: React.FC = () => {
       }, (payload) => {
         if (payload.eventType === 'UPDATE') {
           updateOrder(payload.new);
-          showToast(`Ecosystem Update: Order is ${payload.new.status} 🚀`);
+          showToast(`Order Updated: ${payload.new.status} 📦`);
         }
       })
       .subscribe();
@@ -205,7 +207,7 @@ const AppContent: React.FC = () => {
                   isLiveGPS: true 
                 }));
             },
-            (err) => {
+            () => {
                setUser(prev => ({ ...prev, isLiveGPS: false }));
             },
             { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
@@ -344,28 +346,37 @@ const AppContent: React.FC = () => {
 
   if (initializing) {
     return (
-      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
+      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center">
         <SevenX7Logo size="large" hideBrandName={true} />
-        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mt-12 mb-4"></div>
+        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mt-12 mb-4 mx-auto"></div>
         <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Ecosystem Awakening...</p>
       </div>
     );
   }
 
-  // If user is not authenticated OR they are pending verification
+  // Handle Login & Verification states
   if (!user.isAuthenticated) {
     return (
       <Auth 
-        onLoginSuccess={(userData) => { setUser(userData); navigateTo('SHOP'); }} 
+        onLoginSuccess={(userData) => { 
+          if (userData.verificationStatus === 'approved' || userData.verificationStatus === 'verified') {
+            setUser(userData); 
+            navigateTo('SHOP'); 
+          } else {
+            // Show awaiting screen
+            setUser({ ...userData, isAuthenticated: false });
+          }
+        }} 
         onDemoLogin={() => {
           setUser({
             isAuthenticated: true,
             id: 'demo-user',
             name: 'Demo User',
             phone: '9999999999',
-            location: null,
+            location: { lat: 12.9716, lng: 77.5946 },
             isLiveGPS: false,
-            savedCards: []
+            savedCards: [],
+            verificationStatus: 'approved'
           });
           navigateTo('SHOP');
         }} 

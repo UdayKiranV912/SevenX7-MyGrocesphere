@@ -13,9 +13,9 @@ export interface Product {
   id: string;
   name: string;
   price: number; 
-  mrp?: number; // Added from SQL schema
-  brand?: string; // Added from SQL schema
-  brand_logo_url?: string; // Added from SQL schema
+  mrp?: number;
+  brand?: string;
+  brand_logo_url?: string;
   emoji: string;
   imageUrl?: string; 
   category: string;
@@ -51,7 +51,7 @@ export interface Store {
   lng: number;
   isOpen: boolean;
   type: 'general' | 'produce' | 'dairy'; 
-  store_type: 'grocery' | 'local_ecommerce';
+  store_type: 'grocery' | 'local_ecommerce' | 'dairy' | 'vegetables' | 'fruits' | 'mini_mart' | 'super_mart';
   availableProductIds: string[]; 
   upiId?: string; 
   isRegistered?: boolean;
@@ -91,12 +91,7 @@ export interface UserState {
   isLiveGPS?: boolean;
   savedCards?: SavedCard[];
   role?: 'customer' | 'store_owner' | 'delivery_partner' | 'admin';
-  verificationStatus?: 'pending' | 'verified' | 'rejected';
-}
-
-export interface LocationResult {
-  latitude: number;
-  longitude: number;
+  verificationStatus?: 'pending' | 'approved' | 'rejected' | 'verified';
 }
 
 export interface PaymentSplit {
