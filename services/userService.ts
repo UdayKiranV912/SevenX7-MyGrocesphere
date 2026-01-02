@@ -7,14 +7,13 @@ export const registerUser = async (email: string, pass: string, name: string, ph
         throw new Error("Backend not configured.");
     }
 
-    // Fix: Cast supabase.auth to any to bypass type mismatch for signUp
     const { data, error: authError } = await (supabase.auth as any).signUp({
         email,
         password: pass,
         options: {
             data: {
                 full_name: name,
-                phone_number: phone,
+                phone: phone,
                 role: 'customer'
             }
         }
@@ -23,14 +22,14 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     if (authError) throw authError;
 
     if (data.user) {
-        // Create initial profile record for Super Admin approval
+        // Aligned with SQL: approval_status, phone, full_name
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
-            phone_number: phone,
+            phone: phone,
             email: email,
             role: 'customer',
-            verification_status: 'pending', 
+            approval_status: 'pending', 
             created_at: new Date().toISOString()
         }, { onConflict: 'id' });
         
@@ -43,7 +42,6 @@ export const registerUser = async (email: string, pass: string, name: string, ph
 export const loginUser = async (email: string, pass: string): Promise<UserState> => {
     if (!isSupabaseConfigured) throw new Error("Ecosystem connection not initialized.");
 
-    // Fix: Cast supabase.auth to any to bypass type mismatch for signInWithPassword
     const { data, error } = await (supabase.auth as any).signInWithPassword({
         email,
         password: pass
@@ -57,18 +55,19 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         .eq('id', data.user.id)
         .single();
 
-    // We return the state even if pending, App.tsx handles the UI block
+    if (profileError) throw new Error("Profile not found. Please contact admin.");
+
     return {
-        isAuthenticated: true, // Auth session is valid
+        isAuthenticated: true,
         id: data.user.id,
         name: profile?.full_name || email.split('@')[0],
-        phone: profile?.phone_number || '',
+        phone: profile?.phone || '',
         email: email,
         location: profile?.current_lat ? { lat: profile.current_lat, lng: profile.current_lng } : null,
         address: profile?.address || '',
         neighborhood: profile?.neighborhood || '',
         savedCards: [],
-        verificationStatus: profile?.verification_status || 'pending',
+        verificationStatus: profile?.approval_status || 'pending',
         isLiveGPS: false
     };
 };
@@ -76,14 +75,14 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 export const submitAccessCode = async (userId: string, code: string) => {
     if (!isSupabaseConfigured) return true;
     
+    // Aligned with SQL: inserts into verification_codes table
     const { error } = await supabase
-        .from('profiles')
-        .update({ 
-            submitted_verification_code: code,
-            verification_submitted_at: new Date().toISOString(),
-            verification_status: 'pending' // Ensure it remains pending for review
-        })
-        .eq('id', userId);
+        .from('verification_codes')
+        .insert({ 
+            user_id: userId,
+            code: code,
+            created_at: new Date().toISOString()
+        });
     
     if (error) throw error;
     return true;

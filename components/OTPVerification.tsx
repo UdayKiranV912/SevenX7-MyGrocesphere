@@ -31,7 +31,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
   // Auto-check for approval when in AWAITING_APPROVAL mode
   useEffect(() => {
     if (authMode === 'AWAITING_APPROVAL' && currentUserId) {
-        // Real-time listener for the user's own profile approval
+        // Aligned with SQL: monitoring profiles.approval_status
         const profileSubscription = supabase
             .channel(`approval-poll-${currentUserId}`)
             .on('postgres_changes', { 
@@ -41,8 +41,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                 filter: `id=eq.${currentUserId}` 
             }, async (payload) => {
                 const updated = payload.new as any;
-                if (updated.verification_status === 'approved') {
-                    // Approved! Automatically attempt login
+                if (updated.approval_status === 'approved') {
                     try {
                         const user = await loginUser(formData.email, formData.password);
                         onLoginSuccess(user);
@@ -53,22 +52,20 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
             })
             .subscribe();
 
-        // Heartbeat fallback (polls every 10s in case websocket drops)
+        // Heartbeat fallback (polls every 10s)
         const heartbeat = setInterval(async () => {
             try {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('verification_status')
+                    .select('approval_status')
                     .eq('id', currentUserId)
                     .single();
                 
-                if (profile?.verification_status === 'approved') {
+                if (profile?.approval_status === 'approved') {
                     const user = await loginUser(formData.email, formData.password);
                     onLoginSuccess(user);
                 }
-            } catch (e: any) {
-                // Silently ignore poll errors
-            }
+            } catch (e: any) {}
         }, 10000);
 
         return () => {
@@ -124,11 +121,8 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
           onLoginSuccess(user);
       } catch (err: any) {
           setLoading(false);
-          if (err.message === "AWAITING_APPROVAL") {
-              // Fix: Cast supabase.auth to any to bypass type mismatch for getUser
-              const { data: { user } } = await (supabase.auth as any).getUser();
-              if (user) setCurrentUserId(user.id);
-              setAuthMode('AWAITING_APPROVAL');
+          if (err.message.includes("not found")) {
+              setErrorMsg("Account not verified or pending approval.");
           } else {
               setErrorMsg(err.message || 'Login failed.');
           }

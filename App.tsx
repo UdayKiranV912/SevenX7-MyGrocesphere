@@ -50,7 +50,6 @@ const AppContent: React.FC = () => {
   ============================================================ */
   useEffect(() => {
     const initSession = async () => {
-      // Fix: Cast supabase.auth to any to bypass type mismatch for getSession
       const { data: { session } } = await (supabase.auth as any).getSession();
       
       if (session?.user) {
@@ -66,12 +65,12 @@ const AppContent: React.FC = () => {
               isAuthenticated: true,
               id: profile.id,
               name: profile.full_name,
-              phone: profile.phone_number,
+              phone: profile.phone,
               email: profile.email,
               location: profile.current_lat ? { lat: profile.current_lat, lng: profile.current_lng } : null,
               address: profile.address,
               neighborhood: profile.neighborhood,
-              verificationStatus: profile.verification_status,
+              verificationStatus: profile.approval_status, // Aligned with SQL
               isLiveGPS: false
             });
           }
@@ -86,12 +85,11 @@ const AppContent: React.FC = () => {
   }, [setUser]);
 
   /* ============================================================
-     2️⃣ REAL-TIME APPROVAL SYNC
+     2️⃣ REAL-TIME APPROVAL SYNC (Aligned with approval_status)
   ============================================================ */
   useEffect(() => {
     if (!user.id || user.id === 'demo-user' || user.verificationStatus === 'approved') return;
 
-    // Listen for the Super Admin to change the verification_status in Supabase
     const channel = supabase
       .channel(`approval-sync-${user.id}`)
       .on('postgres_changes', { 
@@ -101,14 +99,15 @@ const AppContent: React.FC = () => {
         filter: `id=eq.${user.id}` 
       }, (payload) => {
         const updatedProfile = payload.new as any;
-        if (updatedProfile.verification_status === 'approved') {
+        // Aligned with your SQL enum: pending, approved, rejected
+        if (updatedProfile.approval_status === 'approved') {
           showToast("Access Granted! Welcome to Grocesphere 🚀");
           setUser(prev => ({ 
             ...prev, 
             verificationStatus: 'approved' 
           }));
           setCurrentView('SHOP');
-        } else if (updatedProfile.verification_status === 'rejected') {
+        } else if (updatedProfile.approval_status === 'rejected') {
           setUser(prev => ({ ...prev, verificationStatus: 'rejected' }));
           showToast("Profile access denied by administrator.");
         }
