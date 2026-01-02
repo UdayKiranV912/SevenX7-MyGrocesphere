@@ -2,12 +2,15 @@
 import { UserState } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
+/**
+ * CUSTOMER REGISTRATION
+ * Strictly assigns 'customer' role as per app focus.
+ */
 export const registerUser = async (email: string, pass: string, name: string, phone: string) => {
     if (!isSupabaseConfigured) {
         throw new Error("Backend not configured.");
     }
 
-    // Cast to any to handle potential local SDK type mismatches
     const { data, error: authError } = await (supabase.auth as any).signUp({
         email,
         password: pass,
@@ -24,7 +27,6 @@ export const registerUser = async (email: string, pass: string, name: string, ph
 
     if (data.user) {
         // Aligned with SQL: profiles(id, role, full_name, email, phone, approval_status)
-        // No more verification_codes table used in this flow
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
@@ -41,6 +43,10 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     return data.user;
 };
 
+/**
+ * CUSTOMER LOGIN
+ * Fetches profile details and ensures role is customer.
+ */
 export const loginUser = async (email: string, pass: string): Promise<UserState> => {
     if (!isSupabaseConfigured) throw new Error("Ecosystem connection not initialized.");
 
@@ -58,7 +64,6 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         .single();
 
     if (profileError) {
-        // If profile doesn't exist yet, we might still be in the signup-sync race
         throw new Error("Profile initializing. Please wait 60 seconds.");
     }
 
@@ -73,14 +78,9 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         neighborhood: profile?.neighborhood || '',
         savedCards: [],
         verificationStatus: profile?.approval_status || 'pending',
-        isLiveGPS: false
+        isLiveGPS: false,
+        role: 'customer' // Explicitly customer
     };
-};
-
-export const submitAccessCode = async (userId: string, code: string) => {
-    // This is now a legacy function as the user requested "no other verification code"
-    // and manual approval within 2 minutes instead.
-    return true;
 };
 
 export const updateUserProfile = async (id: string, updates: any) => {

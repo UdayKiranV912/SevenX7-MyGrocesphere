@@ -48,6 +48,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isAuthenticated: false,
     phone: '',
     location: null,
+    role: 'customer' // Strictly customer app
   });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderMode, setOrderMode] = useState<OrderMode>('DELIVERY');
@@ -69,76 +70,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
 
-  /* ============================================================
-     1️⃣ DEMO MODE SIMULATION LOGIC
-  ============================================================ */
+  // Demo Simulation Logic (Only for demo user)
   useEffect(() => {
     if (user.id !== 'demo-user') return;
-
-    // A: Populate Initial Mock Orders
     if (orders.length === 0) {
-        setOrders([
-            {
-                id: 'DEMO-8821',
-                date: new Date().toISOString(),
-                items: [
-                    { ...INITIAL_PRODUCTS[0], quantity: 2, selectedBrand: 'India Gate', originalProductId: 's1', storeId: 'blr-ind-2', storeName: 'MK Ahmed Bazaar', storeType: 'general' }
-                ],
-                total: 280,
-                status: 'Preparing',
-                paymentStatus: 'PAID',
-                mode: 'DELIVERY',
-                deliveryType: 'INSTANT',
-                order_type: 'grocery',
-                storeName: 'MK Ahmed Bazaar',
-                storeLocation: { lat: 12.9700, lng: 77.6380 }
-            }
-        ]);
+        setOrders([{
+            id: 'DEMO-8821', date: new Date().toISOString(), items: [{ ...INITIAL_PRODUCTS[0], quantity: 2, selectedBrand: 'India Gate', originalProductId: 's1', storeId: 'blr-ind-2', storeName: 'MK Ahmed Bazaar', storeType: 'general' }],
+            total: 280, status: 'Preparing', paymentStatus: 'PAID', mode: 'DELIVERY', deliveryType: 'INSTANT', order_type: 'grocery', storeName: 'MK Ahmed Bazaar', storeLocation: { lat: 12.9700, lng: 77.6380 }
+        }]);
     }
-
-    // B: Simulate Order Progression (Preparing -> On the way -> Delivered)
     const stateInterval = setInterval(() => {
-        setOrders(prev => prev.map(order => {
-            if (order.id === 'DEMO-8821' && order.status === 'Preparing') {
-                return { ...order, status: 'On the way' };
-            }
-            return order;
-        }));
+        setOrders(prev => prev.map(o => (o.id === 'DEMO-8821' && o.status === 'Preparing') ? { ...o, status: 'On the way' } : o));
     }, 15000);
-
-    // C: Driver Movement Simulation for Demo
-    let demoProgress = 0;
-    const movementInterval = setInterval(() => {
-        const activeDemoOrder = orders.find(o => o.id === 'DEMO-8821' && o.status === 'On the way');
-        if (!activeDemoOrder || !user.location) return;
-
-        demoProgress += 0.01; // 1% progress every 2s
-        if (demoProgress >= 1) {
-            demoProgress = 1;
-            setOrders(prev => prev.map(o => o.id === 'DEMO-8821' ? { ...o, status: 'Delivered' } : o));
-        }
-
-        const start: [number, number] = [activeDemoOrder.storeLocation!.lat, activeDemoOrder.storeLocation!.lng];
-        const end: [number, number] = [user.location.lat, user.location.lng];
-        const currentPos = interpolatePosition(start, end, demoProgress);
-        const distRemaining = calculateHaversineDistance(currentPos[0], currentPos[1], end[0], end[1]);
-
-        setDriverLocations(prev => ({
-            ...prev,
-            'DEMO-8821': {
-                lat: currentPos[0],
-                lng: currentPos[1],
-                distanceRemaining: distRemaining,
-                timeRemaining: (distRemaining / 6.94) * 1.2 // 6.94 m/s + 20% traffic padding
-            }
-        }));
-    }, 2000);
-
-    return () => {
-        clearInterval(stateInterval);
-        clearInterval(movementInterval);
-    };
-  }, [user.id, user.location, orders.length]);
+    return () => clearInterval(stateInterval);
+  }, [user.id, orders.length]);
 
   const showToast = useCallback((message: string, action?: { label: string; onClick: () => void }) => {
     setToast({ message, show: true, action });
@@ -168,7 +113,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoading(true);
     const searchLat = lat || 12.9716;
     const searchLng = lng || 77.5946;
-
     try {
         const stores = await fetchVerifiedStores(searchLat, searchLng);
         const hydratedStores = await Promise.all(stores.map(async (s) => {
@@ -183,13 +127,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [isLoading]);
 
-  // Load Inventory for Active Store
   useEffect(() => {
     if (activeStore && activeStore.id && !activeStore.id.startsWith('blr-')) {
         fetchStoreInventory(activeStore.id).then(items => {
-            if (items.length > 0) {
-                setStoreProducts(items.map(i => i.details as Product));
-            }
+            if (items.length > 0) setStoreProducts(items.map(i => i.details as Product));
         });
     } else {
         setStoreProducts(INITIAL_PRODUCTS);
@@ -197,10 +138,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [activeStore]);
 
   useEffect(() => {
-    if (user.isAuthenticated) {
-        loadStores(user.location?.lat, user.location?.lng);
-    }
-  }, [user.location?.lat, user.location?.lng, user.isAuthenticated]);
+    if (user.isAuthenticated) loadStores(user.location?.lat, user.location?.lng);
+  }, [user.location?.lat, user.location?.lng, user.isAuthenticated, loadStores]);
 
   useEffect(() => {
     if (user.isAuthenticated && user.id && user.id !== 'demo-user') {
@@ -209,14 +148,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => {
                 loadStores(userRef.current.location?.lat, userRef.current.location?.lng);
             })
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') setIsBackendConnected(true);
-            });
-
-        return () => { 
-            supabase.removeChannel(storeChannel); 
-            setIsBackendConnected(false);
-        };
+            .subscribe((status) => { if (status === 'SUBSCRIBED') setIsBackendConnected(true); });
+        return () => { supabase.removeChannel(storeChannel); setIsBackendConnected(false); };
     }
   }, [user.isAuthenticated, user.id, loadStores]);
 
@@ -230,22 +163,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
           const neighborhood = data.address?.suburb || data.address?.neighbourhood || 'Nearby Area';
-          
-          setUser(prev => ({ 
-            ...prev, 
-            location: { lat: latitude, lng: longitude },
-            accuracy: accuracy,
-            isLiveGPS: true,
-            address: data.display_name,
-            neighborhood: neighborhood
-          }));
-
+          setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude }, accuracy, isLiveGPS: true, address: data.display_name, neighborhood }));
           if (userRef.current.isAuthenticated && userRef.current.id && userRef.current.id !== 'demo-user') {
-              await supabase.from('profiles').update({
-                  current_lat: latitude,
-                  current_lng: longitude,
-                  updated_at: new Date().toISOString()
-              }).eq('id', userRef.current.id);
+              await supabase.from('profiles').update({ current_lat: latitude, current_lng: longitude, updated_at: new Date().toISOString() }).eq('id', userRef.current.id);
+              await supabase.from('live_locations').upsert({ user_id: userRef.current.id, role: 'customer', lat: latitude, lng: longitude, updated_at: new Date().toISOString() });
           }
         } catch (e) {
           setUser(prev => ({ ...prev, location: { lat: latitude, lng: longitude }, accuracy, isLiveGPS: true }));
@@ -253,15 +174,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       },
       () => { 
           setIsLoading(false);
-          // If in Demo, always inject a valid location
           if (userRef.current.id === 'demo-user' || !userRef.current.isAuthenticated) {
-              setUser(prev => ({ 
-                  ...prev, 
-                  location: { lat: 12.9716, lng: 77.5946 }, 
-                  neighborhood: 'Indiranagar',
-                  address: 'Indiranagar, Bengaluru, KA',
-                  isLiveGPS: false 
-              }));
+              setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar', address: 'Indiranagar, Bengaluru, KA', isLiveGPS: false }));
           }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -271,14 +185,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addToCart = useCallback((product: Product, quantity = 1, brand?: string, price?: number, variant?: any) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id && item.selectedBrand === (brand || 'Generic'));
-      if (existing) {
-        return prev.map(item => (item.id === product.id && item.selectedBrand === (brand || 'Generic')) ? { ...item, quantity: item.quantity + quantity } : item);
-      }
-      return [...prev, {
-        ...product, quantity, selectedBrand: brand || 'Generic', selectedVariant: variant,
-        price: price || product.price, originalProductId: product.id,
-        storeId: activeStore?.id || 'def', storeName: activeStore?.name || 'Store', storeType: activeStore?.type || 'general'
-      }];
+      if (existing) return prev.map(item => (item.id === product.id && item.selectedBrand === (brand || 'Generic')) ? { ...item, quantity: item.quantity + quantity } : item);
+      return [...prev, { ...product, quantity, selectedBrand: brand || 'Generic', selectedVariant: variant, price: price || product.price, originalProductId: product.id, storeId: activeStore?.id || 'def', storeName: activeStore?.name || 'Store', storeType: activeStore?.type || 'general' }];
     });
     showToast(`Added ${product.name}`);
   }, [activeStore, showToast]);
@@ -296,68 +204,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (user.id && user.id !== 'demo-user') {
           try {
               const { data: orderData, error: orderError } = await supabase.from('orders').insert({
-                  customer_id: user.id,
-                  store_id: order.items[0].storeId,
-                  status: 'placed',
-                  mode: order.mode.toLowerCase(),
-                  total_amount: order.total,
-                  payment_status: order.paymentStatus.toLowerCase(),
-                  delivery_lat: user.location?.lat,
-                  delivery_lng: user.location?.lng,
-                  created_at: new Date().toISOString()
+                  customer_id: user.id, store_id: order.items[0].storeId, status: 'placed', mode: order.mode.toLowerCase(),
+                  total_amount: order.total, payment_status: order.paymentStatus.toLowerCase(),
+                  delivery_lat: user.location?.lat, delivery_lng: user.location?.lng, created_at: new Date().toISOString()
               }).select().single();
-
               if (orderError) throw orderError;
-
               if (orderData) {
                   order.id = orderData.id;
-                  const { error: itemsError } = await supabase.from('order_items').insert(
-                      order.items.map(item => ({
-                          order_id: orderData.id,
-                          product_id: item.originalProductId,
-                          price: item.price,
-                          quantity: item.quantity
-                      }))
-                  );
-                  if (itemsError) console.error("Item sync failed:", itemsError);
+                  await supabase.from('order_items').insert(order.items.map(item => ({ order_id: orderData.id, product_id: item.originalProductId, price: item.price, quantity: item.quantity })));
               }
-          } catch (e: any) {
-              console.error("Cloud Sync Failed:", e.message || e);
-              showToast("Ecosystem Offline. Order saved locally.");
-          }
+          } catch (e: any) { showToast("Order saved locally."); }
       }
-      
-      setOrders(prev => {
-          if (prev.find(o => o.id === order.id)) return prev;
-          return [order, ...prev];
-      });
+      setOrders(prev => [order, ...prev.filter(o => o.id !== order.id)]);
   }, [user.id, user.location, showToast]);
 
   const updateOrder = useCallback((updatedOrder: any) => {
-      setOrders(prev => prev.map(o => {
-          if (o.id === updatedOrder.id) {
-              return { 
-                  ...o, 
-                  status: updatedOrder.status,
-                  paymentStatus: updatedOrder.payment_status === 'paid' ? 'PAID' : o.paymentStatus
-              };
-          }
-          return o;
-      }));
+      setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, status: updatedOrder.status, paymentStatus: updatedOrder.payment_status === 'paid' ? 'PAID' : o.paymentStatus } : o));
   }, []);
 
   const updateOrderStatus = useCallback((orderId: string, status: Order['status']) => {
-    setOrders(prev => {
-        const isComplete = status === 'Delivered' || status === 'Picked Up';
-        return prev.map(o => {
-            if (o.id !== orderId) return o;
-            return { 
-                ...o, 
-                status, 
-                paymentStatus: isComplete ? 'PAID' as const : o.paymentStatus 
-            };
-        });
-    });
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, paymentStatus: (status === 'Delivered' || status === 'Picked Up') ? 'PAID' as const : o.paymentStatus } : o));
   }, []);
 
   const resolveStoreSwitch = useCallback((accept: boolean) => {
