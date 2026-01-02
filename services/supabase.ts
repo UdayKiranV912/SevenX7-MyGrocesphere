@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Connection details updated to the user's specific project
+// User-provided Supabase credentials
 const supabaseUrl = 'https://tobdllelnheqtnnmaxxr.supabase.co';
 const supabaseAnonKey = 'sb_publishable_Bgj45OANboOHclsXDeDpEA_6D_YLpIR';
 

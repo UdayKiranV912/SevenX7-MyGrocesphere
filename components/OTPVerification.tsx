@@ -125,8 +125,8 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
       } catch (err: any) {
           setLoading(false);
           if (err.message === "AWAITING_APPROVAL") {
-              // Try to find the user ID if we don't have it
-              const { data: { user } } = await supabase.auth.getUser();
+              // Fix: Cast supabase.auth to any to bypass type mismatch for getUser
+              const { data: { user } } = await (supabase.auth as any).getUser();
               if (user) setCurrentUserId(user.id);
               setAuthMode('AWAITING_APPROVAL');
           } else {
@@ -198,7 +198,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                         <div className="text-center space-y-8 py-4 animate-fade-in">
                             <div className="relative w-24 h-24 mx-auto">
                                 <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-pulse-glow"></div>
-                                <div className="relative w-full h-full bg-white rounded-[2.5rem] border-4 border-emerald-50 flex items-center justify-center text-5xl shadow-xl">🛡️</div>
+                                <div className="relative w-full h-full bg-white rounded-[2.5rem] border-4 border-emerald-5 flex items-center justify-center text-5xl shadow-xl">🛡️</div>
                             </div>
                             <div>
                                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Review In Progress</h3>

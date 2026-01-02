@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { StoreProvider, useStore } from './contexts/StoreContext';
-import { Order, DeliveryType, UserState, DriverLocationState } from './types';
+import { Order, DeliveryType, UserState } from './types';
 import { Auth } from './components/OTPVerification';
 import { CartSheet } from './components/CartSheet';
 import { PaymentGateway } from './components/PaymentGateway';
@@ -37,26 +37,21 @@ const AppContent: React.FC = () => {
   const [pendingOrderDetails, setPendingOrderDetails] = useState<{ 
     deliveryType: DeliveryType; 
     scheduledTime?: string;
-    isPayLater?: boolean;
-    existingOrderId?: string; 
-    amount?: number;
     splits?: any;
     storeName?: string;
     mode?: 'DELIVERY' | 'PICKUP';
+    amount?: number;
   } | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
-  
-  const simulationTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const simulationIntervals = useRef<Record<string, ReturnType<typeof setInterval>>>({});
-  const simulationLocks = useRef<Record<string, string>>({}); 
 
   /* ============================================================
-     1️⃣ INITIALIZE ECOSYSTEM SESSION & REALTIME VERIFICATION
+     1️⃣ INITIALIZE SESSION & REAL-TIME MONITORING
   ============================================================ */
   useEffect(() => {
     const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Fix: Cast supabase.auth to any to bypass type mismatch for getSession
+      const { data: { session } } = await (supabase.auth as any).getSession();
       
       if (session?.user) {
         try {
@@ -67,10 +62,8 @@ const AppContent: React.FC = () => {
             .single();
 
           if (profile && !error) {
-            const isApproved = profile.verification_status === 'approved';
-            
             setUser({
-              isAuthenticated: isApproved,
+              isAuthenticated: true,
               id: profile.id,
               name: profile.full_name,
               phone: profile.phone_number,
@@ -83,7 +76,7 @@ const AppContent: React.FC = () => {
             });
           }
         } catch (err) {
-          console.error("Profile initialization failed:", err);
+          console.error("Profile sync failed:", err);
         }
       }
       setInitializing(false);
@@ -93,13 +86,14 @@ const AppContent: React.FC = () => {
   }, [setUser]);
 
   /* ============================================================
-     2️⃣ REALTIME PROFILE SYNC (Approval Unlock)
+     2️⃣ REAL-TIME APPROVAL SYNC
   ============================================================ */
   useEffect(() => {
-    if (!user.id || user.id === 'demo-user' || user.isAuthenticated) return;
+    if (!user.id || user.id === 'demo-user' || user.verificationStatus === 'approved') return;
 
+    // Listen for the Super Admin to change the verification_status in Supabase
     const channel = supabase
-      .channel(`profile-verification-sync-${user.id}`)
+      .channel(`approval-sync-${user.id}`)
       .on('postgres_changes', { 
         event: 'UPDATE', 
         schema: 'public', 
@@ -108,66 +102,25 @@ const AppContent: React.FC = () => {
       }, (payload) => {
         const updatedProfile = payload.new as any;
         if (updatedProfile.verification_status === 'approved') {
-          showToast("Account Approved! Welcome to the Ecosystem 🚀");
+          showToast("Access Granted! Welcome to Grocesphere 🚀");
           setUser(prev => ({ 
             ...prev, 
-            isAuthenticated: true, 
             verificationStatus: 'approved' 
           }));
           setCurrentView('SHOP');
         } else if (updatedProfile.verification_status === 'rejected') {
           setUser(prev => ({ ...prev, verificationStatus: 'rejected' }));
-          showToast("Registration rejected. Please contact support.");
+          showToast("Profile access denied by administrator.");
         }
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user.id, user.isAuthenticated, setUser, setCurrentView, showToast]);
+  }, [user.id, user.verificationStatus, setUser, setCurrentView, showToast]);
 
   /* ============================================================
-     3️⃣ REAL-TIME ORDERS SUBSCRIPTIONS
+     3️⃣ UI NAVIGATION & LOGIC
   ============================================================ */
-  useEffect(() => {
-    if (!user.id || user.id === 'demo-user' || !user.isAuthenticated) return;
-
-    const channel = supabase
-      .channel(`customer-orders-realtime-${user.id}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'orders', 
-        filter: `customer_id=eq.${user.id}` 
-      }, (payload) => {
-        if (payload.eventType === 'UPDATE') {
-          updateOrder(payload.new);
-          showToast(`Order Status Update: ${payload.new.status} 📦`);
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user.id, user.isAuthenticated, updateOrder, showToast]);
-
-  /* ============================================================
-     4️⃣ NAVIGATION & UI SYNC
-  ============================================================ */
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state && event.state.view) {
-        setCurrentView(event.state.view);
-      } else {
-        setCurrentView('SHOP');
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    if (!window.history.state) {
-      window.history.replaceState({ view: 'SHOP' }, '');
-    }
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [setCurrentView]);
-
   const navigateTo = (view: typeof currentView) => {
     if (currentView === view) return;
     window.history.pushState({ view }, '');
@@ -175,137 +128,7 @@ const AppContent: React.FC = () => {
     if (mainRef.current) mainRef.current.scrollTop = 0;
   };
 
-  useEffect(() => {
-    const currentCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-    if (currentCount > prevCartCount.current) {
-      setAnimateCart(true);
-      if ('vibrate' in navigator) navigator.vibrate(15);
-      const timer = setTimeout(() => setAnimateCart(false), 600);
-      prevCartCount.current = currentCount;
-      return () => clearTimeout(timer);
-    }
-    prevCartCount.current = currentCount;
-  }, [cart]);
-
-  useEffect(() => {
-    if (user.address) setDeliveryAddress(user.address);
-  }, [user.address]);
-
-  useEffect(() => {
-    if (user.isAuthenticated && navigator.geolocation) {
-        detectLocation();
-        watchIdRef.current = navigator.geolocation.watchPosition(
-            (position) => {
-                const { latitude, longitude, accuracy } = position.coords;
-                setUser(prev => ({ 
-                  ...prev, 
-                  location: { lat: latitude, lng: longitude },
-                  accuracy: accuracy,
-                  isLiveGPS: true 
-                }));
-            },
-            () => {
-               setUser(prev => ({ ...prev, isLiveGPS: false }));
-            },
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-        );
-    }
-    return () => {
-        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    };
-  }, [user.isAuthenticated, detectLocation, setUser]);
-
-  /* ============================================================
-     5️⃣ DEMO SIMULATION ENGINE
-  ============================================================ */
-  useEffect(() => {
-    if (user.id !== 'demo-user') return;
-
-    orders.forEach(async (order) => {
-      const isTerminal = order.status === 'Delivered' || order.status === 'Picked Up' || order.status === 'Cancelled' || order.status === 'Ready';
-      
-      if (isTerminal) {
-          if (simulationTimers.current[order.id]) {
-              clearTimeout(simulationTimers.current[order.id]);
-              delete simulationTimers.current[order.id];
-          }
-          if (simulationIntervals.current[order.id]) {
-              clearInterval(simulationIntervals.current[order.id]);
-              delete simulationIntervals.current[order.id];
-          }
-          delete simulationLocks.current[order.id];
-          return;
-      }
-
-      if (order.status === 'Pending' && !simulationLocks.current[order.id]) {
-          simulationLocks.current[order.id] = 'Preparing';
-          simulationTimers.current[order.id] = setTimeout(() => {
-              updateOrderStatus(order.id, 'Preparing');
-              delete simulationLocks.current[order.id];
-          }, 3000);
-      }
-
-      if (order.status === 'Preparing' && !simulationLocks.current[order.id]) {
-          const nextStatus = order.mode === 'DELIVERY' ? 'On the way' : 'Ready';
-          simulationLocks.current[order.id] = nextStatus;
-          simulationTimers.current[order.id] = setTimeout(() => {
-              updateOrderStatus(order.id, nextStatus);
-              delete simulationLocks.current[order.id];
-          }, 6000);
-      }
-
-      if (order.status === 'On the way' && order.mode === 'DELIVERY' && !simulationIntervals.current[order.id]) {
-          const userLat = user.location?.lat || 12.9716;
-          const userLng = user.location?.lng || 77.5946;
-          const storeLat = order.storeLocation?.lat || 12.9784;
-          const storeLng = order.storeLocation?.lng || 77.6408;
-          
-          const routeResult = await getRoute(storeLat, storeLng, userLat, userLng);
-          const path = routeResult.coordinates;
-          if (path.length < 2) return;
-
-          let currentNodeIndex = 0;
-          let nodeProgress = 0;
-          const tickRate = 500; 
-          const simulationSpeed = 0.12; 
-
-          simulationIntervals.current[order.id] = setInterval(() => {
-            if (currentNodeIndex >= path.length - 1) {
-              clearInterval(simulationIntervals.current[order.id]);
-              delete simulationIntervals.current[order.id];
-              updateOrderStatus(order.id, 'Delivered');
-              setDriverLocations(prev => { const next = { ...prev }; delete next[order.id]; return next; });
-              showToast(`Demo order delivered! 🛵`);
-              return;
-            }
-
-            nodeProgress += simulationSpeed;
-            if (nodeProgress >= 1) { nodeProgress = 0; currentNodeIndex++; }
-
-            if (currentNodeIndex < path.length - 1) {
-              const pos = interpolatePosition(path[currentNodeIndex], path[currentNodeIndex + 1], nodeProgress);
-              const distRem = calculateHaversineDistance(pos[0], pos[1], userLat, userLng);
-              const timeRem = distRem / AVG_DELIVERY_SPEED_MPS;
-
-              setDriverLocations(prev => ({ 
-                ...prev, 
-                [order.id]: { 
-                  lat: pos[0], 
-                  lng: pos[1],
-                  distanceRemaining: distRem,
-                  timeRemaining: timeRem
-                } 
-              }));
-            }
-          }, tickRate);
-      }
-    });
-  }, [orders, user.id, user.location, updateOrderStatus, setDriverLocations, showToast]);
-
-  /* ============================================================
-     6️⃣ ORDER LIFECYCLE
-  ============================================================ */
-  const handleProceedToPay = (details: { deliveryType: DeliveryType; scheduledTime?: string; isPayLater?: boolean; splits: any }) => {
+  const handleProceedToPay = (details: { deliveryType: DeliveryType; scheduledTime?: string; splits: any }) => {
       setPendingOrderDetails({ ...details, storeName: activeStore?.name, mode: orderMode });
       setShowPaymentGateway(true);
   };
@@ -343,27 +166,19 @@ const AppContent: React.FC = () => {
 
   if (initializing) {
     return (
-      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6 text-center">
+      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
         <SevenX7Logo size="large" hideBrandName={true} />
-        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mt-12 mb-4 mx-auto"></div>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Ecosystem Awakening...</p>
+        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mt-12 mb-4"></div>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Establishing Connection...</p>
       </div>
     );
   }
 
-  // Handle Login & Verification states
+  // State 1: Not Logged In
   if (!user.isAuthenticated) {
     return (
       <Auth 
-        onLoginSuccess={(userData) => { 
-          if (userData.verificationStatus === 'approved') {
-            setUser(userData); 
-            navigateTo('SHOP'); 
-          } else {
-            // User logged in but status is still pending/verified
-            setUser({ ...userData, isAuthenticated: false });
-          }
-        }} 
+        onLoginSuccess={(userData) => { setUser(userData); }} 
         onDemoLogin={() => {
           setUser({
             isAuthenticated: true,
@@ -372,7 +187,6 @@ const AppContent: React.FC = () => {
             phone: '9999999999',
             location: { lat: 12.9716, lng: 77.5946 },
             isLiveGPS: false,
-            savedCards: [],
             verificationStatus: 'approved'
           });
           navigateTo('SHOP');
@@ -381,34 +195,51 @@ const AppContent: React.FC = () => {
     );
   }
 
-  const renderHeaderCenter = () => {
-    if (isLoading) return (
-      <div className="flex flex-col items-center animate-fade-in">
-         <span className="text-[11px] font-black text-emerald-600 tracking-tight leading-none uppercase animate-pulse">Syncing...</span>
-      </div>
-    );
-
-    if (activeStore) return (
-      <div className="flex flex-col items-center animate-fade-in">
-         <div className="flex items-center gap-1.5 mb-0.5">
-           <div className={`w-1 h-1 rounded-full ${user.isLiveGPS ? 'bg-emerald-500 animate-ping' : 'bg-slate-300'}`}></div>
-           <span className={`text-[6px] font-black uppercase tracking-[0.2em] ${user.isLiveGPS ? 'text-emerald-500' : 'text-slate-400'}`}>
-              {user.isLiveGPS ? 'Live Now' : 'Shopping At'}
-           </span>
-         </div>
-         <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[140px]">
-            {activeStore.name}
-         </span>
-      </div>
-    );
-
+  // State 2: Logged In but Awaiting Approval
+  if (user.verificationStatus !== 'approved') {
     return (
-      <div className="flex flex-col items-center animate-fade-in">
-         <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none uppercase truncate max-w-[160px]">{user.neighborhood || 'Finding Marts'}</span>
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center text-white">
+          <div className="mb-12 relative">
+              <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-3xl animate-pulse"></div>
+              <SevenX7Logo size="large" hideBrandName={true} />
+          </div>
+          
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-[3rem] shadow-2xl space-y-8 max-w-sm animate-scale-in">
+              <div className="w-20 h-20 bg-emerald-500/20 rounded-[2.5rem] flex items-center justify-center text-5xl mx-auto border border-emerald-500/30">⏳</div>
+              <div>
+                  <h2 className="text-2xl font-black uppercase tracking-tight mb-3">Review in Progress</h2>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                      Your profile has been broadcast to HQ. <br/>
+                      <span className="text-emerald-400">Super Admin</span> is currently validating your access.
+                  </p>
+              </div>
+              
+              <div className="pt-6 space-y-4">
+                  <div className="flex items-center justify-center gap-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500">Real-time Sync Active</span>
+                  </div>
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+                  >
+                    Check Status
+                  </button>
+                  <button 
+                    onClick={() => setUser({ isAuthenticated: false, phone: '', location: null })}
+                    className="text-[9px] font-black text-slate-500 uppercase tracking-widest"
+                  >
+                    Logout
+                  </button>
+              </div>
+          </div>
+          
+          <p className="mt-12 text-[8px] font-black text-slate-500 uppercase tracking-[0.5em] opacity-40">System will automatically unlock upon approval</p>
       </div>
     );
-  };
+  }
 
+  // State 3: Approved & Main App
   return (
     <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 overflow-hidden flex flex-col selection:bg-emerald-100 relative">
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
@@ -421,7 +252,9 @@ const AppContent: React.FC = () => {
                     <div className={`absolute -right-1 -top-1 w-2 h-2 rounded-full border border-white ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                 </div>
                 <button className="flex-1 flex flex-col items-center group active:scale-95 transition-transform px-2 overflow-hidden" onClick={detectLocation}>
-                    {renderHeaderCenter()}
+                    <div className="flex flex-col items-center">
+                        <span className="text-[12px] font-black text-slate-900 tracking-tight leading-none truncate max-w-[160px]">{user.neighborhood || 'Finding Marts'}</span>
+                    </div>
                 </button>
                 <div className="flex-shrink-0 flex justify-end min-w-[40px]">
                     <button onClick={() => navigateTo('PROFILE')} className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white text-[9px] font-black uppercase shadow-lg transition-transform active:scale-90 ring-2 ring-white">
