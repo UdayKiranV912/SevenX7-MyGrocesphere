@@ -217,14 +217,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Direct insertion for real-time users
       if (user.id && user.id !== 'demo-user') {
           try {
+              // Aligned with SQL: orders(customer_id, store_id, status, mode, total_amount, payment_status, delivery_lat, delivery_lng)
               const { data: orderData, error: orderError } = await supabase.from('orders').insert({
                   customer_id: user.id,
                   store_id: order.items[0].storeId,
                   status: 'placed',
+                  mode: order.mode.toLowerCase(), // pickup or delivery as per order_mode enum
                   total_amount: order.total,
-                  delivery_address: order.deliveryAddress,
-                  order_mode: order.mode,
-                  payment_status: order.paymentStatus,
+                  payment_status: order.paymentStatus.toLowerCase(), // pending or paid as per payment_status enum
+                  delivery_lat: user.location?.lat,
+                  delivery_lng: user.location?.lng,
                   created_at: new Date().toISOString()
               }).select().single();
 
@@ -232,12 +234,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               if (orderData) {
                   order.id = orderData.id;
-                  // Handle order items for Super Admin itemized view
+                  // Aligned with SQL: order_items(order_id, product_id, quantity, price)
                   const { error: itemsError } = await supabase.from('order_items').insert(
                       order.items.map(item => ({
                           order_id: orderData.id,
                           product_id: item.originalProductId,
-                          unit_price: item.price,
+                          price: item.price,
                           quantity: item.quantity
                       }))
                   );
@@ -254,7 +256,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (prev.find(o => o.id === order.id)) return prev;
           return [order, ...prev];
       });
-  }, [user.id, showToast]);
+  }, [user.id, user.location, showToast]);
 
   const updateOrder = useCallback((updatedOrder: any) => {
       setOrders(prev => prev.map(o => {
@@ -262,7 +264,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               return { 
                   ...o, 
                   status: updatedOrder.status,
-                  paymentStatus: updatedOrder.payment_status === 'PAID' ? 'PAID' : o.paymentStatus
+                  paymentStatus: updatedOrder.payment_status === 'paid' ? 'PAID' : o.paymentStatus
               };
           }
           return o;

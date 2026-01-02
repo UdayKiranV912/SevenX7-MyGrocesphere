@@ -7,9 +7,8 @@ export const fetchVerifiedStores = async (lat: number, lng: number): Promise<Sto
     try {
         const { data: stores, error } = await supabase
             .from('stores')
-            .select('id, name, address, lat, lng, is_open, is_approved')
-            .eq('is_approved', true) // Filter for only approved stores
-            .eq('is_open', true);
+            .select('id, name, address, lat, lng, approved')
+            .eq('approved', true); // Aligned with SQL: approved boolean
 
         if (error) {
             console.error("Partner sync failed:", error.message || error);
@@ -26,7 +25,7 @@ export const fetchVerifiedStores = async (lat: number, lng: number): Promise<Sto
             distance: 'Nearby',
             lat: parseFloat(s.lat as any) || 12.9716,
             lng: parseFloat(s.lng as any) || 77.5946,
-            isOpen: s.is_open,
+            isOpen: true, // Default to true if not explicitly tracking status in SQL
             type: 'general',
             store_type: 'grocery', 
             availableProductIds: [], 
@@ -35,7 +34,7 @@ export const fetchVerifiedStores = async (lat: number, lng: number): Promise<Sto
         }));
     } catch (err) {
         console.error("Failed to fetch stores due to network error:", err);
-        return []; // Return empty instead of throwing to prevent app crash
+        return [];
     }
 };
 
@@ -46,7 +45,8 @@ export const fetchStoreInventory = async (store_id: string) => {
             .select(`
                 product_id, 
                 price, 
-                in_stock,
+                stock,
+                active,
                 products:product_id (
                     name,
                     brand,
@@ -57,7 +57,7 @@ export const fetchStoreInventory = async (store_id: string) => {
                 )
             `)
             .eq('store_id', store_id)
-            .eq('in_stock', true);
+            .eq('active', true); // Aligned with SQL: active boolean
         
         if (error) {
             console.error("Inventory sync failed:", error.message || error);
@@ -69,7 +69,7 @@ export const fetchStoreInventory = async (store_id: string) => {
             return {
                 product_id: item.product_id,
                 price: item.price,
-                in_stock: item.in_stock,
+                stock: item.stock,
                 details: {
                     id: item.product_id,
                     name: p?.name,
@@ -91,10 +91,9 @@ export const fetchStoreInventory = async (store_id: string) => {
 export const submitSellerRating = async (customerId: string, storeId: string, orderId: string, rating: number, comment: string) => {
     try {
         const { error } = await supabase
-            .from('seller_ratings')
+            .from('ratings') // Aligned with SQL: ratings table
             .insert({
                 customer_id: customerId,
-                store_id: storeId,
                 order_id: orderId,
                 rating: rating,
                 review: comment,

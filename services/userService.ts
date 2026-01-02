@@ -7,6 +7,7 @@ export const registerUser = async (email: string, pass: string, name: string, ph
         throw new Error("Backend not configured.");
     }
 
+    // Cast to any to handle potential local SDK type mismatches
     const { data, error: authError } = await (supabase.auth as any).signUp({
         email,
         password: pass,
@@ -22,7 +23,7 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     if (authError) throw authError;
 
     if (data.user) {
-        // Aligned with SQL: approval_status, phone, full_name
+        // Aligned with provided SQL schema: profiles(id, role, full_name, email, phone, approval_status)
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
@@ -75,7 +76,7 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 export const submitAccessCode = async (userId: string, code: string) => {
     if (!isSupabaseConfigured) return true;
     
-    // Aligned with SQL: inserts into verification_codes table
+    // Aligned with SQL: verification_codes(user_id, code)
     const { error } = await supabase
         .from('verification_codes')
         .insert({ 
