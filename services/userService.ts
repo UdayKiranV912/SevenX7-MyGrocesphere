@@ -23,7 +23,8 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     if (authError) throw authError;
 
     if (data.user) {
-        // Aligned with provided SQL schema: profiles(id, role, full_name, email, phone, approval_status)
+        // Aligned with SQL: profiles(id, role, full_name, email, phone, approval_status)
+        // No more verification_codes table used in this flow
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
@@ -56,7 +57,10 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
         .eq('id', data.user.id)
         .single();
 
-    if (profileError) throw new Error("Profile not found. Please contact admin.");
+    if (profileError) {
+        // If profile doesn't exist yet, we might still be in the signup-sync race
+        throw new Error("Profile initializing. Please wait 60 seconds.");
+    }
 
     return {
         isAuthenticated: true,
@@ -74,18 +78,8 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 };
 
 export const submitAccessCode = async (userId: string, code: string) => {
-    if (!isSupabaseConfigured) return true;
-    
-    // Aligned with SQL: verification_codes(user_id, code)
-    const { error } = await supabase
-        .from('verification_codes')
-        .insert({ 
-            user_id: userId,
-            code: code,
-            created_at: new Date().toISOString()
-        });
-    
-    if (error) throw error;
+    // This is now a legacy function as the user requested "no other verification code"
+    // and manual approval within 2 minutes instead.
     return true;
 };
 

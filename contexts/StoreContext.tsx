@@ -4,6 +4,7 @@ import { UserState, CartItem, Store, Product, Order, OrderMode } from '../types'
 import { MOCK_STORES, INITIAL_PRODUCTS } from '../constants';
 import { fetchVerifiedStores, fetchStoreInventory } from '../services/storeService';
 import { supabase } from '../services/supabase';
+import { interpolatePosition, calculateHaversineDistance } from '../services/routingService';
 
 interface StoreContextType {
   user: UserState;
@@ -67,6 +68,77 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
+
+  /* ============================================================
+     1️⃣ DEMO MODE SIMULATION LOGIC
+  ============================================================ */
+  useEffect(() => {
+    if (user.id !== 'demo-user') return;
+
+    // A: Populate Initial Mock Orders
+    if (orders.length === 0) {
+        setOrders([
+            {
+                id: 'DEMO-8821',
+                date: new Date().toISOString(),
+                items: [
+                    { ...INITIAL_PRODUCTS[0], quantity: 2, selectedBrand: 'India Gate', originalProductId: 's1', storeId: 'blr-ind-2', storeName: 'MK Ahmed Bazaar', storeType: 'general' }
+                ],
+                total: 280,
+                status: 'Preparing',
+                paymentStatus: 'PAID',
+                mode: 'DELIVERY',
+                deliveryType: 'INSTANT',
+                order_type: 'grocery',
+                storeName: 'MK Ahmed Bazaar',
+                storeLocation: { lat: 12.9700, lng: 77.6380 }
+            }
+        ]);
+    }
+
+    // B: Simulate Order Progression (Preparing -> On the way -> Delivered)
+    const stateInterval = setInterval(() => {
+        setOrders(prev => prev.map(order => {
+            if (order.id === 'DEMO-8821' && order.status === 'Preparing') {
+                return { ...order, status: 'On the way' };
+            }
+            return order;
+        }));
+    }, 15000);
+
+    // C: Driver Movement Simulation for Demo
+    let demoProgress = 0;
+    const movementInterval = setInterval(() => {
+        const activeDemoOrder = orders.find(o => o.id === 'DEMO-8821' && o.status === 'On the way');
+        if (!activeDemoOrder || !user.location) return;
+
+        demoProgress += 0.01; // 1% progress every 2s
+        if (demoProgress >= 1) {
+            demoProgress = 1;
+            setOrders(prev => prev.map(o => o.id === 'DEMO-8821' ? { ...o, status: 'Delivered' } : o));
+        }
+
+        const start: [number, number] = [activeDemoOrder.storeLocation!.lat, activeDemoOrder.storeLocation!.lng];
+        const end: [number, number] = [user.location.lat, user.location.lng];
+        const currentPos = interpolatePosition(start, end, demoProgress);
+        const distRemaining = calculateHaversineDistance(currentPos[0], currentPos[1], end[0], end[1]);
+
+        setDriverLocations(prev => ({
+            ...prev,
+            'DEMO-8821': {
+                lat: currentPos[0],
+                lng: currentPos[1],
+                distanceRemaining: distRemaining,
+                timeRemaining: (distRemaining / 6.94) * 1.2 // 6.94 m/s + 20% traffic padding
+            }
+        }));
+    }, 2000);
+
+    return () => {
+        clearInterval(stateInterval);
+        clearInterval(movementInterval);
+    };
+  }, [user.id, user.location, orders.length]);
 
   const showToast = useCallback((message: string, action?: { label: string; onClick: () => void }) => {
     setToast({ message, show: true, action });
@@ -168,7 +240,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             neighborhood: neighborhood
           }));
 
-          if (userRef.current.isAuthenticated && userRef.current.id) {
+          if (userRef.current.isAuthenticated && userRef.current.id && userRef.current.id !== 'demo-user') {
               await supabase.from('profiles').update({
                   current_lat: latitude,
                   current_lng: longitude,
@@ -181,8 +253,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       },
       () => { 
           setIsLoading(false);
-          if (userRef.current.id === 'demo-user') {
-              setUser(prev => ({ ...prev, location: { lat: 12.9716, lng: 77.5946 }, neighborhood: 'Indiranagar' }));
+          // If in Demo, always inject a valid location
+          if (userRef.current.id === 'demo-user' || !userRef.current.isAuthenticated) {
+              setUser(prev => ({ 
+                  ...prev, 
+                  location: { lat: 12.9716, lng: 77.5946 }, 
+                  neighborhood: 'Indiranagar',
+                  address: 'Indiranagar, Bengaluru, KA',
+                  isLiveGPS: false 
+              }));
           }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -214,17 +293,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const addOrder = useCallback(async (order: Order) => {
-      // Direct insertion for real-time users
       if (user.id && user.id !== 'demo-user') {
           try {
-              // Aligned with SQL: orders(customer_id, store_id, status, mode, total_amount, payment_status, delivery_lat, delivery_lng)
               const { data: orderData, error: orderError } = await supabase.from('orders').insert({
                   customer_id: user.id,
                   store_id: order.items[0].storeId,
                   status: 'placed',
-                  mode: order.mode.toLowerCase(), // pickup or delivery as per order_mode enum
+                  mode: order.mode.toLowerCase(),
                   total_amount: order.total,
-                  payment_status: order.paymentStatus.toLowerCase(), // pending or paid as per payment_status enum
+                  payment_status: order.paymentStatus.toLowerCase(),
                   delivery_lat: user.location?.lat,
                   delivery_lng: user.location?.lng,
                   created_at: new Date().toISOString()
@@ -234,7 +311,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               if (orderData) {
                   order.id = orderData.id;
-                  // Aligned with SQL: order_items(order_id, product_id, quantity, price)
                   const { error: itemsError } = await supabase.from('order_items').insert(
                       order.items.map(item => ({
                           order_id: orderData.id,
@@ -251,7 +327,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
       }
       
-      // Update local state
       setOrders(prev => {
           if (prev.find(o => o.id === order.id)) return prev;
           return [order, ...prev];

@@ -70,7 +70,7 @@ const AppContent: React.FC = () => {
               location: profile.current_lat ? { lat: profile.current_lat, lng: profile.current_lng } : null,
               address: profile.address,
               neighborhood: profile.neighborhood,
-              verificationStatus: profile.approval_status, // Aligned with SQL
+              verificationStatus: profile.approval_status,
               isLiveGPS: false
             });
           }
@@ -85,7 +85,7 @@ const AppContent: React.FC = () => {
   }, [setUser]);
 
   /* ============================================================
-     2️⃣ REAL-TIME APPROVAL SYNC (Aligned with approval_status)
+     2️⃣ REAL-TIME APPROVAL SYNC
   ============================================================ */
   useEffect(() => {
     if (!user.id || user.id === 'demo-user' || user.verificationStatus === 'approved') return;
@@ -99,9 +99,8 @@ const AppContent: React.FC = () => {
         filter: `id=eq.${user.id}` 
       }, (payload) => {
         const updatedProfile = payload.new as any;
-        // Aligned with your SQL enum: pending, approved, rejected
         if (updatedProfile.approval_status === 'approved') {
-          showToast("Access Granted! Welcome to Grocesphere 🚀");
+          showToast("Profile Verified! Access Granted 🚀");
           setUser(prev => ({ 
             ...prev, 
             verificationStatus: 'approved' 
@@ -109,7 +108,7 @@ const AppContent: React.FC = () => {
           setCurrentView('SHOP');
         } else if (updatedProfile.approval_status === 'rejected') {
           setUser(prev => ({ ...prev, verificationStatus: 'rejected' }));
-          showToast("Profile access denied by administrator.");
+          showToast("Access Denied: Please contact support.");
         }
       })
       .subscribe();
@@ -168,7 +167,7 @@ const AppContent: React.FC = () => {
       <div className="h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
         <SevenX7Logo size="large" hideBrandName={true} />
         <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mt-12 mb-4"></div>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Establishing Connection...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Initializing Ecosystem...</p>
       </div>
     );
   }
@@ -208,32 +207,32 @@ const AppContent: React.FC = () => {
               <div>
                   <h2 className="text-2xl font-black uppercase tracking-tight mb-3">Review in Progress</h2>
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                      Your profile has been broadcast to HQ. <br/>
-                      <span className="text-emerald-400">Super Admin</span> is currently validating your access.
+                      Your profile is being reviewed by HQ. <br/>
+                      <span className="text-emerald-400">Super Admin</span> approval window is 2 minutes.
                   </p>
               </div>
               
               <div className="pt-6 space-y-4">
                   <div className="flex items-center justify-center gap-3">
                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
-                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500">Real-time Sync Active</span>
+                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500">Live Syncing with HQ...</span>
                   </div>
                   <button 
                     onClick={() => window.location.reload()} 
                     className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"
                   >
-                    Check Status
+                    Refresh Status
                   </button>
                   <button 
                     onClick={() => setUser({ isAuthenticated: false, phone: '', location: null })}
                     className="text-[9px] font-black text-slate-500 uppercase tracking-widest"
                   >
-                    Logout
+                    Sign Out
                   </button>
               </div>
           </div>
           
-          <p className="mt-12 text-[8px] font-black text-slate-500 uppercase tracking-[0.5em] opacity-40">System will automatically unlock upon approval</p>
+          <p className="mt-12 text-[8px] font-black text-slate-500 uppercase tracking-[0.5em] opacity-40">System will unlock automatically</p>
       </div>
     );
   }

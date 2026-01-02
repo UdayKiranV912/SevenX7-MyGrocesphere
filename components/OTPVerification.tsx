@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { registerUser, loginUser, submitAccessCode } from '../services/userService';
+import { registerUser, loginUser } from '../services/userService';
 import { UserState } from '../types';
 import SevenX7Logo from './SevenX7Logo';
 import { supabase } from '../services/supabase';
@@ -10,7 +10,7 @@ interface AuthProps {
   onDemoLogin: () => void;
 }
 
-type AuthMode = 'LOGIN' | 'REGISTER' | 'VERIFY' | 'AWAITING_APPROVAL';
+type AuthMode = 'LOGIN' | 'REGISTER' | 'AWAITING_APPROVAL';
 
 export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
   const [authMode, setAuthMode] = useState<AuthMode>('LOGIN');
@@ -21,7 +21,6 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
       email: '',
       phone: '',
       password: '',
-      otp: ''
   });
   
   const [loading, setLoading] = useState(false);
@@ -30,8 +29,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
 
   // Auto-check for approval when in AWAITING_APPROVAL mode
   useEffect(() => {
-    if (authMode === 'AWAITING_APPROVAL' && currentUserId) {
-        // Aligned with SQL: monitoring profiles.approval_status
+    if (authMode === 'AWAITING_APPROVAL' && currentUserId && currentUserId !== 'demo-user') {
         const profileSubscription = supabase
             .channel(`approval-poll-${currentUserId}`)
             .on('postgres_changes', { 
@@ -52,7 +50,6 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
             })
             .subscribe();
 
-        // Heartbeat fallback (polls every 10s)
         const heartbeat = setInterval(async () => {
             try {
                 const { data: profile } = await supabase
@@ -79,34 +76,16 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
       e.preventDefault();
       setErrorMsg('');
       setLoading(true);
-      setStatusMsg('Broadcasting to Ecosystem...');
+      setStatusMsg('Broadcasting Profile to HQ...');
 
       try {
           const user = await registerUser(formData.email, formData.password, formData.fullName, formData.phone);
           if (user) setCurrentUserId(user.id);
           setLoading(false);
-          setAuthMode('VERIFY'); 
+          setAuthMode('AWAITING_APPROVAL'); 
       } catch (err: any) {
           setErrorMsg(err.message || 'Registration failed');
           setLoading(false);
-      }
-  };
-
-  const handleVerifyCode = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setLoading(true);
-      setErrorMsg('');
-      setStatusMsg('Securing Profile Entry...');
-
-      try {
-          if (currentUserId) {
-              await submitAccessCode(currentUserId, formData.otp);
-          }
-          setLoading(false);
-          setAuthMode('AWAITING_APPROVAL');
-      } catch (err: any) {
-          setLoading(false);
-          setErrorMsg(err.message || "Could not submit code.");
       }
   };
 
@@ -118,14 +97,16 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
 
       try {
           const user = await loginUser(formData.email, formData.password);
-          onLoginSuccess(user);
+          if (user.verificationStatus === 'approved') {
+            onLoginSuccess(user);
+          } else {
+            setCurrentUserId(user.id || null);
+            setAuthMode('AWAITING_APPROVAL');
+            setLoading(false);
+          }
       } catch (err: any) {
           setLoading(false);
-          if (err.message.includes("not found")) {
-              setErrorMsg("Account not verified or pending approval.");
-          } else {
-              setErrorMsg(err.message || 'Login failed.');
-          }
+          setErrorMsg(err.message || 'Login failed.');
       }
   };
 
@@ -158,7 +139,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                         <form onSubmit={handleStandardLogin} className="space-y-4">
                             <input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-base font-bold outline-none focus:ring-4 focus:ring-emerald-50" required />
                             <input type="password" placeholder="Password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-base font-bold outline-none focus:ring-4 focus:ring-emerald-50" required />
-                            {errorMsg && <p className="text-[10px] text-red-500 font-black text-center bg-red-50 p-3 rounded-xl uppercase">{errorMsg}</p>}
+                            {errorMsg && <p className="text-[10px] text-red-500 font-black text-center bg-red-50 p-3 rounded-xl uppercase leading-relaxed">{errorMsg}</p>}
                             <button type="submit" className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all">Log In</button>
                         </form>
                     )}
@@ -170,22 +151,8 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                             <input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-base font-bold outline-none" required />
                             <input type="password" placeholder="Password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-base font-bold outline-none" required />
                             {errorMsg && <p className="text-[10px] text-red-500 font-black text-center bg-red-50 p-3 rounded-xl uppercase">{errorMsg}</p>}
-                            <button type="submit" className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl">Register Profile</button>
+                            <button type="submit" className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl">Join Ecosystem</button>
                         </form>
-                    )}
-
-                    {authMode === 'VERIFY' && (
-                        <div className="text-center space-y-6">
-                            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2rem] flex items-center justify-center text-3xl mx-auto border border-emerald-100">🔐</div>
-                            <div>
-                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Access Token</h3>
-                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-2 px-4">Provide the invite token given by Super Admin to initialize verification.</p>
-                            </div>
-                            <form onSubmit={handleVerifyCode} className="space-y-4">
-                                <input type="text" placeholder="Token" value={formData.otp} onChange={(e) => setFormData({...formData, otp: e.target.value})} className="w-full text-center text-xl font-black bg-slate-50 border border-slate-200 rounded-2xl p-5 outline-none focus:ring-4 focus:ring-emerald-50 transition-all" required />
-                                <button type="submit" className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl">Initialize</button>
-                            </form>
-                        </div>
                     )}
 
                     {authMode === 'AWAITING_APPROVAL' && (
@@ -195,16 +162,20 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onDemoLogin }) => {
                                 <div className="relative w-full h-full bg-white rounded-[2.5rem] border-4 border-emerald-5 flex items-center justify-center text-5xl shadow-xl">🛡️</div>
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Review In Progress</h3>
+                                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Review Pending</h3>
                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-3 px-2 leading-loose">
                                     Profile received at HQ. <br/>
-                                    <span className="text-emerald-600">Super Admin</span> is validating your credentials. <br/>
-                                    <span className="text-[8px] opacity-40 uppercase">System will auto-unlock on approval</span>
+                                    <span className="text-emerald-600">Super Admin</span> is currently reviewing your access. <br/>
+                                    Approval usually takes <span className="text-slate-900 underline underline-offset-4">2 minutes</span>.
                                 </p>
                             </div>
                             <div className="flex flex-col gap-3">
+                                <div className="flex items-center justify-center gap-3 py-2">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-500">Real-time HQ Sync Active</span>
+                                </div>
                                 <button onClick={() => window.location.reload()} className="w-full py-4 bg-slate-100 text-slate-900 rounded-2xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all">Manual Sync</button>
-                                <button onClick={() => setAuthMode('LOGIN')} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-xl">Back to Login</button>
+                                <button onClick={onDemoLogin} className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-xl">Bypass for Demo</button>
                             </div>
                         </div>
                     )}

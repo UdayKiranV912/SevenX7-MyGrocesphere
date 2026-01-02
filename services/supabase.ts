@@ -1,9 +1,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Connection details updated to the newest provided project
-const supabaseUrl = 'https://xhfmqktjfhgvvdouafsm.supabase.co';
-const supabaseAnonKey = 'sb_publishable_8bI-iu52FZyuNRygZFkRJA_FwbwdTk4';
+// Connection details updated to the newest provided project (bgavgglaktkwncibfelu)
+const supabaseUrl = 'https://bgavgglaktkwncibfelu.supabase.co';
+const supabaseAnonKey = 'sb_publishable_7xzUVmYovc_w_I4baegEYg_bUQkvQwy';
 
 export const isSupabaseConfigured = !!supabaseUrl && !supabaseUrl.includes('placeholder');
 
