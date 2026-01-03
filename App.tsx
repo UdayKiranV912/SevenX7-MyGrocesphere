@@ -75,6 +75,7 @@ const AppContent: React.FC = () => {
     initSession();
   }, [setUser]);
 
+  // Real-time Approval Sync
   useEffect(() => {
     if (!user.id || user.id === 'demo-user' || user.verificationStatus === 'approved') return;
 
@@ -88,12 +89,17 @@ const AppContent: React.FC = () => {
       }, (payload) => {
         const updatedProfile = payload.new as any;
         if (updatedProfile.approval_status === 'approved') {
-          showToast("Profile Verified! Access Granted 🚀");
-          setUser(prev => ({ ...prev, verificationStatus: 'approved' }));
+          showToast("Access Granted! Welcome to Grocesphere 🚀");
+          setUser(prev => ({ 
+            ...prev, 
+            verificationStatus: 'approved',
+            name: updatedProfile.full_name,
+            address: updatedProfile.address
+          }));
           setCurrentView('SHOP');
         } else if (updatedProfile.approval_status === 'rejected') {
           setUser(prev => ({ ...prev, verificationStatus: 'rejected' }));
-          showToast("Access Denied: Please contact support.");
+          showToast("Profile Rejected. Contact Admin support.");
         }
       })
       .subscribe();
@@ -158,15 +164,31 @@ const AppContent: React.FC = () => {
     }} />;
   }
 
+  // Handle waiting screen
   if (user.verificationStatus !== 'approved') {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center text-white">
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center text-white overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px]"></div>
           <SevenX7Logo size="large" hideBrandName={true} />
-          <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] shadow-2xl space-y-6 max-w-sm mt-12">
-              <div className="text-5xl">🛡️</div>
-              <h2 className="text-xl font-black uppercase tracking-tight">Review Pending</h2>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-loose">Admin is validating your profile. Usually takes 2 minutes.</p>
-              <button onClick={() => window.location.reload()} className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest">Refresh Status</button>
+          <div className="bg-white/5 border border-white/10 p-12 rounded-[3.5rem] shadow-2xl space-y-8 max-w-sm mt-12 backdrop-blur-md animate-scale-in">
+              <div className="relative w-20 h-20 mx-auto">
+                 <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping"></div>
+                 <div className="relative w-full h-full bg-white rounded-3xl flex items-center justify-center text-4xl shadow-lg">🛡️</div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-tight">Access Locked</h2>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-4 leading-loose">
+                  Your profile has been broadcast to HQ. <br/>
+                  Admin is verifying your credentials...
+                </p>
+              </div>
+              <div className="pt-4 space-y-3">
+                <div className="flex items-center justify-center gap-2 py-2">
+                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                   <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">Live Syncing with HQ</span>
+                </div>
+                <button onClick={() => window.location.reload()} className="w-full py-5 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Refresh Status</button>
+              </div>
           </div>
       </div>
     );
@@ -177,15 +199,15 @@ const AppContent: React.FC = () => {
       <Toast message={toast.message} isVisible={toast.show} onClose={hideToast} action={toast.action} />
 
       {!showPaymentGateway && (
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 px-5 py-4 flex items-center justify-between shrink-0">
+        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 px-5 py-4 flex items-center justify-between shrink-0">
             <SevenX7Logo size="xs" hideBrandName={true} />
             <button className="flex flex-col items-center group active:scale-95 transition-transform" onClick={detectLocation}>
                 <span className="text-[11px] font-black text-slate-900 tracking-tighter uppercase">{user.neighborhood || 'Finding Stores'}</span>
-                <span className="text-emerald-500 text-[9px] font-black tracking-widest uppercase flex items-center gap-1">📍 Live Ecosystem</span>
+                <span className="text-emerald-500 text-[9px] font-black tracking-widest uppercase flex items-center gap-1">📍 Near You</span>
             </button>
             <button 
               onClick={() => navigateTo('PROFILE')}
-              className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg transition-all active:scale-90 ring-2 ring-white ${isBackendConnected ? 'bg-emerald-600' : 'bg-slate-900'}`}
+              className={`w-10 h-10 rounded-[14px] flex items-center justify-center text-white text-[11px] font-black uppercase shadow-xl transition-all active:scale-90 ring-2 ring-white overflow-hidden ${isBackendConnected ? 'bg-emerald-600' : 'bg-slate-900'}`}
             >
                 {user.name?.charAt(0) || 'U'}
             </button>
@@ -214,25 +236,25 @@ const AppContent: React.FC = () => {
       </main>
 
       {!showPaymentGateway && currentView !== 'PROFILE' && (
-        <nav className="fixed bottom-0 left-0 right-0 z-[45] safe-bottom border-t border-slate-100 bg-white/90 backdrop-blur-xl shadow-2xl">
-           <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
+        <nav className="fixed bottom-0 left-0 right-0 z-[45] safe-bottom border-t border-slate-100 bg-white/95 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+           <div className="max-w-md mx-auto flex justify-around items-center h-16 px-4">
             {[
-              { id: 'SHOP', icon: '🏠', label: 'Home' },
-              { id: 'ORDERS', icon: '🧾', label: 'Orders' },
+              { id: 'SHOP', icon: '🏠', label: 'Marts' },
+              { id: 'ORDERS', icon: '🧾', label: 'History' },
               { id: 'CART', icon: '🛒', label: 'Cart', badge: cart.reduce((a,b)=>a+b.quantity,0) }
             ].map((item) => {
                 const isActive = currentView === item.id;
                 return (
                   <button key={item.id} onClick={() => navigateTo(item.id as any)} className={`flex flex-col items-center justify-center flex-1 h-full transition-all group relative ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
                       <div className={`relative flex items-center justify-center transition-all duration-300 group-active:scale-90`}>
-                          <span className={`text-xl block transition-all ${isActive ? 'scale-110 filter-none' : 'grayscale opacity-60'}`}>{item.icon}</span>
+                          <span className={`text-xl block transition-all ${isActive ? 'scale-110' : 'grayscale opacity-60'}`}>{item.icon}</span>
                           {item.badge ? (
-                              <span className="absolute -top-1.5 -right-2 bg-slate-900 text-white text-[7px] font-black w-3.5 h-3.5 flex items-center justify-center rounded-full border border-white">
+                              <span className="absolute -top-2 -right-2 bg-slate-900 text-white text-[7px] font-black w-4 h-4 flex items-center justify-center rounded-full border-2 border-white shadow-lg">
                                   {item.badge}
                               </span>
                           ) : null}
                       </div>
-                      <span className={`text-[7px] font-black uppercase tracking-[0.1em] mt-1 ${isActive ? 'opacity-100' : 'opacity-0'}`}>•</span>
+                      <span className={`text-[7px] font-black uppercase tracking-[0.2em] mt-1.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`}>•</span>
                   </button>
                 );
             })}

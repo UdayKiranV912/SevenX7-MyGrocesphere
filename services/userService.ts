@@ -4,7 +4,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 
 /**
  * CUSTOMER REGISTRATION
- * Strictly assigns 'customer' role as per app focus.
+ * Strictly assigns 'customer' role and creates the profile record.
  */
 export const registerUser = async (email: string, pass: string, name: string, phone: string) => {
     if (!isSupabaseConfigured) {
@@ -26,7 +26,7 @@ export const registerUser = async (email: string, pass: string, name: string, ph
     if (authError) throw authError;
 
     if (data.user) {
-        // Aligned with SQL: profiles(id, role, full_name, email, phone, approval_status)
+        // Create initial profile record
         const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user.id,
             full_name: name,
@@ -37,7 +37,7 @@ export const registerUser = async (email: string, pass: string, name: string, ph
             created_at: new Date().toISOString()
         }, { onConflict: 'id' });
         
-        if (profileError) console.error("Profile sync failed:", profileError.message);
+        if (profileError) console.error("Profile creation failed:", profileError.message);
     }
 
     return data.user;
@@ -45,7 +45,7 @@ export const registerUser = async (email: string, pass: string, name: string, ph
 
 /**
  * CUSTOMER LOGIN
- * Fetches profile details and ensures role is customer.
+ * Fetches profile details with improved resiliency and fallback for new users.
  */
 export const loginUser = async (email: string, pass: string): Promise<UserState> => {
     if (!isSupabaseConfigured) throw new Error("Ecosystem connection not initialized.");
@@ -57,50 +57,60 @@ export const loginUser = async (email: string, pass: string): Promise<UserState>
 
     if (error) throw error;
 
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+    // Retry logic for profile fetch to handle signup race conditions
+    let profileData = null;
+    let retries = 3;
+    
+    while (retries > 0) {
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+            
+        if (profile) {
+            profileData = profile;
+            break;
+        }
+        
+        // Wait 1 second before retry
+        await new Promise(r => setTimeout(r, 1000));
+        retries--;
+    }
 
-    if (profileError) {
-        throw new Error("Profile initializing. Please wait 60 seconds.");
+    // Final fallback if profile row is completely missing after retries
+    if (!profileData) {
+        console.warn("Profile row missing after retries. Creating temporary session stub.");
+        const { data: stub, error: stubError } = await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: email,
+            full_name: email.split('@')[0],
+            role: 'customer',
+            approval_status: 'pending'
+        }).select().single();
+        
+        if (stubError) throw new Error("Authentication successful but profile initialization failed. Please try again.");
+        profileData = stub;
     }
 
     return {
         isAuthenticated: true,
         id: data.user.id,
-        name: profile?.full_name || email.split('@')[0],
-        phone: profile?.phone || '',
+        name: profileData?.full_name || email.split('@')[0],
+        phone: profileData?.phone || '',
         email: email,
-        location: profile?.current_lat ? { lat: profile.current_lat, lng: profile.current_lng } : null,
-        address: profile?.address || '',
-        neighborhood: profile?.neighborhood || '',
+        location: profileData?.current_lat ? { lat: profileData.current_lat, lng: profileData.current_lng } : null,
+        address: profileData?.address || '',
+        neighborhood: profileData?.neighborhood || '',
         savedCards: [],
-        verificationStatus: profile?.approval_status || 'pending',
+        verificationStatus: profileData?.approval_status || 'pending',
         isLiveGPS: false,
-        role: 'customer' // Explicitly customer
+        role: 'customer'
     };
 };
 
 export const updateUserProfile = async (id: string, updates: any) => {
-    if (!isSupabaseConfigured) return true;
-
-    const dbUpdates: any = { ...updates };
-    if (updates.location) {
-        dbUpdates.current_lat = updates.location.lat;
-        dbUpdates.current_lng = updates.location.lng;
-        delete dbUpdates.location;
-    }
-
-    const { error } = await supabase
-        .from('profiles')
-        .update({
-            ...dbUpdates,
-            updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-    if (error) throw error;
+    // Customers can't update profiles directly in this version - read only.
+    console.warn("User update blocked. Profiles are strictly managed by Admin.");
     return true;
 };
