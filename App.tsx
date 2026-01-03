@@ -179,11 +179,16 @@ const AppContent: React.FC = () => {
       {!showPaymentGateway && (
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 px-5 py-4 flex items-center justify-between shrink-0">
             <SevenX7Logo size="xs" hideBrandName={true} />
-            <button className="flex items-center gap-2 group active:scale-95 transition-transform" onClick={detectLocation}>
+            <button className="flex flex-col items-center group active:scale-95 transition-transform" onClick={detectLocation}>
                 <span className="text-[11px] font-black text-slate-900 tracking-tighter uppercase">{user.neighborhood || 'Finding Stores'}</span>
-                <span className="text-emerald-500 text-xs">📍</span>
+                <span className="text-emerald-500 text-[9px] font-black tracking-widest uppercase flex items-center gap-1">📍 Live Ecosystem</span>
             </button>
-            <div className={`w-2 h-2 rounded-full ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+            <button 
+              onClick={() => navigateTo('PROFILE')}
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg transition-all active:scale-90 ring-2 ring-white ${isBackendConnected ? 'bg-emerald-600' : 'bg-slate-900'}`}
+            >
+                {user.name?.charAt(0) || 'U'}
+            </button>
         </header>
       )}
 
@@ -208,14 +213,13 @@ const AppContent: React.FC = () => {
         )}
       </main>
 
-      {!showPaymentGateway && (
+      {!showPaymentGateway && currentView !== 'PROFILE' && (
         <nav className="fixed bottom-0 left-0 right-0 z-[45] safe-bottom border-t border-slate-100 bg-white/90 backdrop-blur-xl shadow-2xl">
            <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
             {[
               { id: 'SHOP', icon: '🏠', label: 'Home' },
               { id: 'ORDERS', icon: '🧾', label: 'Orders' },
-              { id: 'CART', icon: '🛒', label: 'Cart', badge: cart.reduce((a,b)=>a+b.quantity,0) },
-              { id: 'PROFILE', icon: '👤', label: 'Me' }
+              { id: 'CART', icon: '🛒', label: 'Cart', badge: cart.reduce((a,b)=>a+b.quantity,0) }
             ].map((item) => {
                 const isActive = currentView === item.id;
                 return (
