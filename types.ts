@@ -41,6 +41,8 @@ export interface AdCampaign {
   internalView?: 'SHOP' | 'ORDERS' | 'CART'; 
 }
 
+export type StoreCategory = 'dairy' | 'vegetables' | 'fruits' | 'mini_mart' | 'super_mart' | 'grocery' | 'local_ecommerce';
+
 export interface Store {
   id: string;
   name: string;
@@ -51,7 +53,7 @@ export interface Store {
   lng: number;
   isOpen: boolean;
   type: 'general' | 'produce' | 'dairy'; 
-  store_type: 'grocery' | 'local_ecommerce' | 'dairy' | 'vegetables' | 'fruits' | 'mini_mart' | 'super_mart';
+  store_type: StoreCategory;
   availableProductIds: string[]; 
   upiId?: string; 
   isRegistered?: boolean;
@@ -97,7 +99,7 @@ export interface UserState {
 export interface PaymentSplit {
   storeAmount: number;
   storeUpi?: string;
-  handlingFee?: number; 
+  handlingFee: number; 
   adminUpi?: string;
   deliveryFee: number; 
   driverUpi?: string;

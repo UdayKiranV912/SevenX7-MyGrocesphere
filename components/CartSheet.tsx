@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CartItem, DeliveryType, Store, Product } from '../types';
 import { useStore } from '../contexts/StoreContext';
+import { INITIAL_PRODUCTS } from '../constants';
 
 interface CartItemRowProps {
   item: CartItem;
@@ -10,56 +11,38 @@ interface CartItemRowProps {
 }
 
 const CartItemRow: React.FC<CartItemRowProps> = ({ item, onUpdateQuantity, index }) => {
-  const [isHighlighted, setIsHighlighted] = useState(false);
-  const prevQty = useRef(item.quantity);
-
-  useEffect(() => {
-    if (prevQty.current !== item.quantity) {
-      setIsHighlighted(true);
-      const timer = setTimeout(() => setIsHighlighted(false), 300);
-      prevQty.current = item.quantity;
-      return () => clearTimeout(timer);
-    }
-  }, [item.quantity]);
-
   return (
     <div 
-       className={`p-2 rounded-xl flex items-center gap-3 animate-slide-up transition-all duration-300 ${
-           isHighlighted 
-             ? 'bg-emerald-50 scale-[1.01]' 
-             : 'bg-white'
-       }`}
+       className="p-3 rounded-2xl flex items-center gap-4 bg-white border border-slate-100 animate-slide-up"
        style={{ animationDelay: `${index * 30}ms` }}
      >
-        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-lg shrink-0 border border-slate-200 shadow-sm overflow-hidden p-1.5">
+        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-2xl shrink-0 border border-slate-100">
             {item.emoji}
         </div>
         
         <div className="flex-1 min-w-0">
-           <h3 className="font-bold text-slate-900 text-[10px] truncate leading-tight">{item.name}</h3>
-           <div className="flex items-center gap-1.5 mt-0.5">
-               <span className="text-[10px] font-black text-slate-900">₹{item.price}</span>
-               {item.selectedBrand && (
-                   <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">
-                       • {item.selectedBrand}
-                   </span>
-               )}
+           <h3 className="font-black text-slate-900 text-xs truncate uppercase tracking-tight">{item.name}</h3>
+           <div className="flex items-center gap-2 mt-0.5">
+               <span className="text-[11px] font-black text-emerald-600">₹{item.price}</span>
+               <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                   {item.selectedBrand}
+               </span>
            </div>
         </div>
         
-        <div className="flex items-center bg-slate-100 rounded-lg p-0.5 h-7">
+        <div className="flex items-center bg-slate-900 rounded-xl p-0.5 h-8">
             <button 
               onClick={() => onUpdateQuantity(item.id, -1)}
-              className="w-7 h-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-white rounded-md font-black text-xs active:scale-90 transition-all"
+              className="w-7 h-full flex items-center justify-center text-white rounded-lg font-black text-xs active:scale-90"
             >
               −
             </button>
-            <span className="w-4 text-center text-[10px] font-black text-slate-900">
+            <span className="w-4 text-center text-[10px] font-black text-white">
                 {item.quantity}
             </span>
             <button 
               onClick={() => onUpdateQuantity(item.id, 1)}
-              className="w-7 h-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-white rounded-md font-black text-xs active:scale-90 transition-all"
+              className="w-7 h-full flex items-center justify-center text-white rounded-lg font-black text-xs active:scale-90"
             >
               +
             </button>
@@ -70,7 +53,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({ item, onUpdateQuantity, index
 
 export interface CartDetailsProps {
   cart: CartItem[];
-  onProceedToPay: (details: { deliveryType: DeliveryType; scheduledTime?: string; isPayLater?: boolean; splits: any }) => void;
+  onProceedToPay: (details: { deliveryType: DeliveryType; scheduledTime?: string; splits: any }) => void;
   onUpdateQuantity: (productId: string, delta: number) => void;
   onAddProduct: (product: Product) => void;
   mode: 'DELIVERY' | 'PICKUP';
@@ -88,6 +71,7 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
   cart,
   onProceedToPay,
   onUpdateQuantity,
+  onAddProduct,
   mode,
   onModeChange,
   deliveryAddress,
@@ -95,216 +79,133 @@ export const CartDetails: React.FC<CartDetailsProps> = ({
   activeStore,
   onClose
 }) => {
-  const [isLocatingAddress, setIsLocatingAddress] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
 
+  const ITEMS_TOTAL = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const HANDLING_FEE = 15;
+  const DELIVERY_FEE = mode === 'DELIVERY' ? 35 : 0;
+  const GRAND_TOTAL = ITEMS_TOTAL + HANDLING_FEE + DELIVERY_FEE;
+
+  const suggestions = INITIAL_PRODUCTS
+    .filter(p => !cart.some(c => c.originalProductId === p.id))
+    .slice(0, 4);
+
   useEffect(() => {
     const now = new Date();
-    now.setHours(now.getHours() + 2);
+    now.setHours(now.getHours() + 1);
     setScheduledTime(now.toISOString().slice(0, 16));
   }, []);
-  
-  const BASE_DELIVERY_FEE = 30;
-
-  const groupedItems = React.useMemo(() => {
-    const groups: Record<string, CartItem[]> = {};
-    cart.forEach(item => {
-        if (!groups[item.storeId]) groups[item.storeId] = [];
-        groups[item.storeId].push(item);
-    });
-    return groups;
-  }, [cart]);
-
-  const itemsTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const numStores = Object.keys(groupedItems).length;
-  
-  const deliveryFee = BASE_DELIVERY_FEE * numStores;
-  const totalAmount = itemsTotal + deliveryFee;
-
-  const handleUseCurrentLocation = async () => {
-    setIsLocatingAddress(true);
-    if (!navigator.geolocation) { alert("GPS not supported"); setIsLocatingAddress(false); return; }
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-         const { latitude, longitude } = pos.coords;
-         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const data = await response.json();
-            if (data?.display_name) onAddressChange(data.display_name);
-         } catch(e) { console.error(e); }
-         setIsLocatingAddress(false);
-    }, () => setIsLocatingAddress(false));
-  };
 
   if (cart.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-10 animate-fade-in bg-white">
-        <div className="w-24 h-24 bg-slate-50 rounded-[40px] flex items-center justify-center text-6xl mb-6 shadow-inner border border-slate-100 animate-float">🛒</div>
-        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Your Cart is Empty</h3>
-        <p className="text-[11px] text-slate-400 font-bold mt-2 uppercase tracking-widest leading-relaxed">Local goods are waiting for you.</p>
-        <button 
-          onClick={onClose} 
-          className="mt-8 bg-slate-900 text-white font-black py-4 px-12 rounded-2xl shadow-float active:scale-95 transition-all text-[10px] uppercase tracking-[0.2em]"
-        >
-          Explore Marts
-        </button>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-10 bg-white">
+        <div className="w-24 h-24 bg-slate-50 rounded-[40px] flex items-center justify-center text-6xl mb-6 shadow-inner animate-float">🛒</div>
+        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Cart Empty</h3>
+        <p className="text-[11px] text-slate-400 font-bold mt-2 uppercase tracking-widest">Select items to start your ecosystem order.</p>
+        <button onClick={onClose} className="mt-8 bg-slate-900 text-white font-black py-4 px-10 rounded-2xl shadow-xl active:scale-95 transition-all text-[10px] uppercase tracking-widest">Discover Stores</button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 relative">
+    <div className="flex flex-col h-full bg-slate-50 relative pb-40">
       <div className="px-6 py-4 bg-white border-b border-slate-100 flex justify-between items-center sticky top-0 z-20">
          <div className="flex items-center gap-3">
-            {onClose && (
-                <button onClick={onClose} className="w-9 h-9 flex items-center justify-center bg-slate-100 rounded-full text-slate-500 hover:text-slate-900 border border-slate-200 transition-all active:scale-90">✕</button>
-            )}
-            <div className="flex flex-col">
-                <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase leading-none">Your Cart</h2>
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                    {cart.reduce((a, b) => a + b.quantity, 0)} Items
-                </span>
-            </div>
+            <button onClick={onClose} className="w-9 h-9 flex items-center justify-center bg-slate-100 rounded-full text-slate-500 hover:text-slate-900 transition-all">✕</button>
+            <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase">Your Basket</h2>
          </div>
-         <div className="text-right">
-            <span className="text-[10px] font-black text-slate-900 tracking-tighter tabular-nums">₹{totalAmount}</span>
-         </div>
+         <span className="text-xl font-black text-slate-900">₹{GRAND_TOTAL}</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 pb-64 hide-scrollbar">
-         <div className="space-y-4">
-           {Object.entries(groupedItems).map(([storeId, items]) => {
-              const storeItems = items as CartItem[];
-              const storeInfo = storeItems[0];
-              return (
-                  <div key={storeId} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                      <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-50 flex items-center gap-3">
-                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] ${
-                               storeInfo.storeType === 'produce' ? 'bg-emerald-500 text-white' : 
-                               storeInfo.storeType === 'dairy' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
-                           }`}>
-                                {storeInfo.storeType === 'produce' ? '🥦' : storeInfo.storeType === 'dairy' ? '🥛' : '🏪'}
-                           </div>
-                           <h3 className="font-black text-slate-900 text-[10px] uppercase tracking-widest truncate">{storeInfo.storeName}</h3>
-                      </div>
-                      <div className="p-1 space-y-0.5">
-                          {storeItems.map((item, idx) => (
-                            <CartItemRow key={item.id} item={item} index={idx} onUpdateQuantity={onUpdateQuantity} />
-                          ))}
-                      </div>
-                  </div>
-              );
-           })}
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 hide-scrollbar">
+         {/* Method Selection */}
+         <div className="bg-white p-2 rounded-2xl border border-slate-100 flex shadow-sm">
+            <button onClick={() => onModeChange('DELIVERY')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'DELIVERY' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>🚚 Delivery</button>
+            <button onClick={() => onModeChange('PICKUP')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'PICKUP' ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>🚶 Pickup</button>
          </div>
 
-         <div className="bg-white p-5 rounded-[28px] shadow-sm border border-slate-100 space-y-5">
-            <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block ml-1">Receive Method</label>
-                <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
-                    <button 
-                        onClick={() => onModeChange('DELIVERY')}
-                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'DELIVERY' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
-                    >
-                        🚚 Delivery
-                    </button>
-                    <button 
-                        onClick={() => onModeChange('PICKUP')}
-                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'PICKUP' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
-                    >
-                        🚶 Pickup
-                    </button>
-                </div>
-            </div>
+         {/* Items */}
+         <div className="space-y-3">
+             <div className="flex items-center justify-between px-1">
+                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Items</h4>
+                 <span className="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">Ordered from {activeStore?.name}</span>
+             </div>
+             {cart.map((item, idx) => (
+                <CartItemRow key={idx} item={item} index={idx} onUpdateQuantity={onUpdateQuantity} />
+             ))}
+         </div>
 
-            <div className="pt-2">
-                <div className="flex justify-between items-center mb-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Timing Preference</label>
-                    <div 
-                      onClick={() => setIsScheduled(!isScheduled)}
-                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${isScheduled ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                    >
-                        <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isScheduled ? 'translate-x-5' : 'translate-x-0'}`} />
-                    </div>
-                </div>
-                
-                {isScheduled ? (
-                    <div className="animate-fade-in">
-                        <input 
-                            type="datetime-local" 
-                            value={scheduledTime}
-                            onChange={(e) => setScheduledTime(e.target.value)}
-                            className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 text-[11px] font-black outline-none"
-                        />
-                    </div>
-                ) : (
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center gap-3">
-                        <span className="text-lg">⚡</span>
-                        <div>
-                            <p className="text-[10px] font-black text-slate-900 uppercase">Instant {mode === 'DELIVERY' ? 'Delivery' : 'Pickup'}</p>
-                            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Fastest local service</p>
+         {/* Suggested Products */}
+         <div className="space-y-4 pt-2">
+             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Suggested for you</h4>
+             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                 {suggestions.map(p => (
+                    <button key={p.id} onClick={() => onAddProduct(p)} className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm shrink-0 min-w-[180px] active:scale-95 transition-all">
+                        <span className="text-2xl">{p.emoji}</span>
+                        <div className="text-left">
+                            <p className="text-[10px] font-black text-slate-900 truncate uppercase tracking-tight">{p.name}</p>
+                            <p className="text-[9px] font-black text-emerald-600">₹{p.price}</p>
                         </div>
-                    </div>
-                )}
-            </div>
-
-            {mode === 'DELIVERY' && (
-                <div className="space-y-3 animate-fade-in pt-2">
-                    <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery Address</label>
-                        <button onClick={handleUseCurrentLocation} className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-                            {isLocatingAddress ? <div className="w-2.5 h-2.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : '📍 GPS'}
-                        </button>
-                    </div>
-                    <textarea
-                        value={deliveryAddress}
-                        onChange={(e) => onAddressChange(e.target.value)}
-                        placeholder="Detailed address with landmarks..."
-                        className="w-full bg-slate-50 rounded-2xl p-4 text-[11px] font-black text-slate-700 resize-none focus:bg-white transition-all outline-none border border-slate-200"
-                        rows={2}
-                    />
-                </div>
-            )}
+                        <span className="ml-auto bg-slate-100 text-slate-900 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black">+</span>
+                    </button>
+                 ))}
+             </div>
          </div>
 
-         <div className="bg-slate-900 p-6 rounded-[32px] shadow-xl text-white space-y-4">
-             <div className="flex justify-between text-[11px] font-bold text-slate-400">
-                 <span>Items Subtotal</span>
-                 <span className="text-white">₹{itemsTotal}</span>
+         {/* Timing */}
+         <div className="bg-white p-5 rounded-[28px] border border-slate-100 space-y-4 shadow-sm">
+             <div className="flex justify-between items-center">
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Schedule Order?</label>
+                 <div onClick={() => setIsScheduled(!isScheduled)} className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${isScheduled ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${isScheduled ? 'translate-x-5' : ''}`} />
+                 </div>
              </div>
-             <div className="flex justify-between text-[11px] font-bold text-slate-400">
-                 <span>Service Fee ({numStores} Stores)</span>
-                 <span className="text-white font-black">₹{deliveryFee}</span>
-             </div>
-             <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payable Total</span>
+             {isScheduled && (
+                <input type="datetime-local" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 font-black text-xs outline-none" />
+             )}
+             {!isScheduled && (
+                <div className="flex items-center gap-3 text-emerald-600">
+                    <span className="text-xl">⚡</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Instant {mode === 'DELIVERY' ? 'Dispatch' : 'Pickup'}</span>
                 </div>
-                <span className="text-3xl font-black tracking-tighter tabular-nums">₹{totalAmount}</span>
+             )}
+         </div>
+
+         {/* Bill Details */}
+         <div className="bg-slate-900 p-6 rounded-[32px] text-white space-y-4 shadow-xl">
+             <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                 <span>Items Total</span>
+                 <span className="text-white">₹{ITEMS_TOTAL}</span>
+             </div>
+             <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                 <span>Handling Fee</span>
+                 <span className="text-white">₹{HANDLING_FEE}</span>
+             </div>
+             {mode === 'DELIVERY' && (
+                 <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                     <span>Delivery Fee</span>
+                     <span className="text-white">₹{DELIVERY_FEE}</span>
+                 </div>
+             )}
+             <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+                 <span className="text-[10px] font-black uppercase tracking-widest">Total Payable</span>
+                 <span className="text-2xl font-black tracking-tighter tabular-nums">₹{GRAND_TOTAL}</span>
              </div>
          </div>
       </div>
 
-      <div className="fixed bottom-[60px] left-0 right-0 max-w-md mx-auto z-[35] px-4 animate-slide-up">
-         <div className="bg-white border border-slate-200 rounded-[20px] p-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] flex items-center gap-3">
-             <button 
-                onClick={() => onProceedToPay({ 
-                    deliveryType: isScheduled ? 'SCHEDULED' : 'INSTANT', 
-                    scheduledTime: isScheduled ? scheduledTime : undefined,
-                    splits: { 
-                        storeAmount: itemsTotal, 
-                        deliveryFee: deliveryFee, 
-                        storeUpi: activeStore?.upiId 
-                    } 
-                })}
-                className="w-full h-11 bg-slate-900 text-white rounded-[14px] font-black shadow-lg active:scale-[0.98] transition-all flex items-center justify-between px-6"
-             >
-                <div className="flex flex-col items-start leading-none">
-                    <span className="text-[6px] uppercase tracking-[0.2em] opacity-40 mb-0.5">Step 2</span>
-                    <span className="text-[9px] uppercase tracking-[0.2em]">Confirm & Pay</span>
-                </div>
-                <span className="text-lg font-black tracking-tighter tabular-nums border-l border-white/20 pl-4 ml-2">₹{totalAmount}</span>
-             </button>
-         </div>
+      <div className="fixed bottom-[80px] left-0 right-0 max-w-md mx-auto px-5 z-40">
+          <button 
+            onClick={() => onProceedToPay({
+                deliveryType: isScheduled ? 'SCHEDULED' : 'INSTANT',
+                scheduledTime: isScheduled ? scheduledTime : undefined,
+                splits: { storeAmount: ITEMS_TOTAL, deliveryFee: DELIVERY_FEE, handlingFee: HANDLING_FEE, storeUpi: activeStore?.upiId }
+            })}
+            className="w-full h-14 bg-slate-900 text-white rounded-[22px] font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+          >
+              Confirm & Pay ₹{GRAND_TOTAL}
+          </button>
       </div>
     </div>
   );

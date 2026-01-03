@@ -11,6 +11,7 @@ interface PaymentGatewayProps {
       storeAmount: number;
       storeUpi: string;
       deliveryFee: number;
+      handlingFee: number;
   };
   savedCards?: SavedCard[];
   onSavePaymentMethod?: (method: SavedCard) => void;
@@ -18,238 +19,139 @@ interface PaymentGatewayProps {
   orderMode?: 'DELIVERY' | 'PICKUP';
 }
 
-// User-specified Admin UPI for Escrow
-const ADMIN_UPI_ID = 'ADMIN_UPI@okicici';
+const ADMIN_UPI_ID = 'ADMIN_PAY@okicici';
 
-type GatewayStep = 'CONNECTING' | 'SELECT' | 'PROCESSING' | 'WAITING_VERIFICATION' | 'ADMIN_CHECKING' | 'POP_CONFIRM' | 'SUCCESS' | 'FAILURE';
+type GatewayStep = 'SELECT' | 'REDIRECTING' | 'WAITING_TRANS_ID' | 'VERIFYING' | 'SUCCESS' | 'FAILURE';
 
 export const PaymentGateway: React.FC<PaymentGatewayProps> = ({ 
-  amount, onSuccess, onCancel, isDemo, storeName = 'Store', orderMode, splits
+  amount, onSuccess, onCancel, isDemo, storeName = 'Store', orderMode
 }) => {
-  const [step, setStep] = useState<GatewayStep>('CONNECTING');
-  const [selectedUpiApp, setSelectedUpiApp] = useState('');
+  const [step, setStep] = useState<GatewayStep>('SELECT');
   const [transactionId, setTransactionId] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const successCalledRef = useRef(false);
+  const timerRef = useRef<any>(null);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    const timer = setTimeout(() => {
-        setStep('SELECT');
-    }, 1000);
     return () => {
       document.body.style.overflow = '';
       if (timerRef.current) clearTimeout(timerRef.current);
-      clearTimeout(timer);
     };
   }, []);
 
-  const triggerSuccess = (methodOverride?: string) => {
-      if (successCalledRef.current) return;
-      successCalledRef.current = true;
-      const method = methodOverride || (selectedUpiApp ? `UPI (${selectedUpiApp})` : `Direct UPI Transfer`);
-      onSuccess(method);
+  const handleUpiRedirect = () => {
+    const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=SevenX7%20Ecosystem&am=${amount}&cu=INR&tn=Order%20Payment`;
+    setStep('REDIRECTING');
+    
+    setTimeout(() => {
+        if (!isDemo) window.location.href = upiUrl;
+        setStep('WAITING_TRANS_ID');
+    }, 1500);
   };
 
-  const handleUpiIntent = (appName: string) => {
-    setSelectedUpiApp(appName);
-    
-    // Construct standard UPI intent URL for mobile redirect as requested
-    const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=SevenX7&am=${amount}&cu=INR&tn=Grocesphere%20Order`;
-    
-    if (!isDemo) {
-        // Redirect to UPI app
-        window.location.href = upiUrl;
-        
-        // Move to verification screen after a delay to allow app switching
-        setTimeout(() => setStep('WAITING_VERIFICATION'), 2500);
-    } else {
-        // Demo Mode Simulation
-        setStep('PROCESSING');
-        timerRef.current = setTimeout(() => {
-            setStep('WAITING_VERIFICATION');
-        }, 1500);
+  const handleVerify = () => {
+    if (!transactionId.trim()) {
+        setErrorMsg('Please enter the Transaction ID to continue');
+        return;
     }
-  };
-
-  const verifyWithAdmin = () => {
-      if (!isDemo && !transactionId.trim()) {
-          setErrorMsg('Transaction ID is required.');
-          return;
-      }
-
-      setStep('ADMIN_CHECKING');
-      
-      const verificationDelay = isDemo ? 2000 : 4500;
-      
-      timerRef.current = setTimeout(() => {
-          // Failure simulation (e.g. invalid ID or not received)
-          const isFailed = !isDemo && (transactionId.length < 10 || Math.random() < 0.1);
-          
-          if (isFailed) {
-              setStep('FAILURE');
-              setErrorMsg('Verification failed. Admin could not match this ID with bank receipts.');
-          } else {
-              setStep('SUCCESS');
-              timerRef.current = setTimeout(() => triggerSuccess(), 1500);
-          }
-      }, verificationDelay);
+    setStep('VERIFYING');
+    
+    // Simulate Admin Verification
+    setTimeout(() => {
+        if (isDemo || transactionId.length > 5) {
+            setStep('SUCCESS');
+            setTimeout(() => onSuccess('UPI Transfer Verified'), 1500);
+        } else {
+            setStep('FAILURE');
+            setErrorMsg('Invalid Transaction ID. Admin could not verify this payment.');
+        }
+    }, 2500);
   };
 
   const renderContent = () => {
-      if (step === 'CONNECTING') return (
-          <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-              <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mb-4 mx-auto" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Securing Gateway...</p>
-          </div>
-      );
-
-      if (step === 'POP_CONFIRM') return (
-          <div className="text-center p-8 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-6">
-              <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto border-4 border-emerald-100 shadow-inner">🤝</div>
-              <div>
-                <h3 className="text-xl font-black text-slate-900 mb-1 leading-tight uppercase tracking-tight">Pickup & Pay</h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                    Pay ₹{amount} at <span className="text-slate-900">{storeName}</span> directly via Cash/UPI.
-                </p>
-              </div>
-              <button onClick={() => triggerSuccess('POP: Pay at Store')} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">Confirm Order</button>
-              <button onClick={() => setStep('SELECT')} className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">Back</button>
-          </div>
-      );
-
-      if (step === 'WAITING_VERIFICATION') return (
-          <div className="p-8 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-6 text-center">
-              <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto">📋</div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Verify Payment</h3>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-2">
-                    Enter the Transaction ID / Ref No. from your UPI app for Admin validation.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                  <input 
-                    type="text" 
-                    placeholder="Transaction ID / Ref No."
-                    value={transactionId}
-                    onChange={(e) => {
-                        setTransactionId(e.target.value);
-                        setErrorMsg('');
-                    }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center text-base font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-emerald-50 transition-all"
-                  />
-                  {errorMsg && <p className="text-[9px] text-red-500 font-black uppercase bg-red-50 p-2 rounded-xl">{errorMsg}</p>}
-                  <button onClick={verifyWithAdmin} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Submit ID</button>
-              </div>
-          </div>
-      );
-
-      if (step === 'ADMIN_CHECKING') return (
-          <div className="text-center p-10 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-8">
-              <div className="relative w-24 h-24 mx-auto">
-                <div className="absolute inset-0 border-4 border-emerald-100 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-emerald-50 border-t-transparent rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center text-3xl">🛡️</div>
-              </div>
-              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Admin Verifying</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Scanning bank receipts for ID: {transactionId}</p>
-          </div>
-      );
-
-      if (step === 'FAILURE') return (
-          <div className="text-center p-10 bg-white rounded-[3rem] shadow-2xl animate-scale-in max-w-sm mx-auto space-y-8">
-              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-4xl mx-auto border-4 border-red-100">✕</div>
-              <div>
-                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Payment Issue</h3>
-                  <p className="text-[9px] font-bold text-slate-500 mt-3 uppercase leading-relaxed text-center">{errorMsg}</p>
-              </div>
-              <button onClick={() => setStep('WAITING_VERIFICATION')} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Try Again</button>
-          </div>
-      );
-
-      if (step === 'SUCCESS') return (
-          <div className="fixed inset-0 z-[200] bg-emerald-600 flex flex-col items-center justify-center text-white animate-fade-in p-8 text-center">
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8 shadow-2xl mx-auto">
-                  <svg className="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
-              </div>
-              <h2 className="text-3xl font-black mb-3 uppercase tracking-tighter">Verified</h2>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Funds Secured by Ecosystem Admin</p>
-          </div>
-      );
-
-      return (
-          <div className="flex flex-col h-full animate-fade-in bg-slate-50">
-              <div className="bg-white p-6 pb-10 border-b border-slate-100 flex justify-between items-end shrink-0 shadow-sm">
-                  <div className="space-y-1">
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                        Secure Checkout
-                      </p>
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">Payment</h2>
-                  </div>
-                  <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Total Payable</p>
-                      <span className="text-3xl font-black tracking-tighter tabular-nums text-slate-900">₹{amount}</span>
-                  </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-40 hide-scrollbar">
-                  {orderMode === 'PICKUP' && (
-                    <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Local Pickup Method</h3>
-                        <button 
-                            onClick={() => setStep('POP_CONFIRM')}
-                            className="w-full p-5 bg-white rounded-[24px] border-2 border-emerald-500 flex items-center justify-between shadow-soft group transition-all active:scale-[0.98]"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-2xl border border-emerald-100">🤝</div>
-                                <div className="text-left">
-                                    <span className="font-black text-sm uppercase tracking-tight block text-slate-900">Pay at Store</span>
-                                    <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">Cash or Store UPI</span>
-                                </div>
-                            </div>
-                            <span className="text-emerald-500 font-bold">→</span>
-                        </button>
+    switch(step) {
+        case 'SELECT':
+            return (
+                <div className="flex-1 flex flex-col p-8 space-y-8 animate-fade-in">
+                    <div className="text-center pt-8">
+                        <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto border-4 border-white shadow-soft-xl mb-6">📱</div>
+                        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Checkout</h2>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Secured by Ecosystem Admin Escrow</p>
                     </div>
-                  )}
 
-                  <div className="space-y-3 pt-2">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Digital UPI (to Admin)</h3>
-                      {['Google Pay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
-                          <button 
-                            key={app} 
-                            onClick={() => handleUpiIntent(app)}
-                            className="w-full p-5 bg-white rounded-[24px] border-2 border-slate-100 flex items-center justify-between hover:border-slate-900 transition-all active:scale-[0.98] group shadow-sm"
-                          >
-                              <div className="flex items-center gap-4">
-                                  <div className="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📱</div>
-                                  <span className="font-black text-sm text-slate-800 uppercase tracking-tight">{app}</span>
-                              </div>
-                              <span className="text-slate-200 group-hover:text-slate-900 font-bold">→</span>
-                          </button>
-                      ))}
-                  </div>
+                    <div className="space-y-4">
+                        <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 flex justify-between items-center">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Amount</span>
+                            <span className="text-3xl font-black text-slate-900 tracking-tighter">₹{amount}</span>
+                        </div>
 
-                  <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 mt-4">
-                      <p className="text-[8px] font-black text-emerald-700 uppercase tracking-[0.2em] leading-relaxed text-center">
-                          Payments are escrowed by <strong className="text-slate-900">SevenX7 Admin</strong> and released to the mart upon delivery verification.
-                      </p>
-                  </div>
-              </div>
-              
-              <div className="p-6 pt-0 bg-slate-50 border-t border-slate-100">
-                <button onClick={onCancel} className="w-full py-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] text-center">Cancel Checkout</button>
-              </div>
-          </div>
-      );
+                        <button onClick={handleUpiRedirect} className="w-full h-16 bg-slate-900 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-between px-8 group active:scale-95 transition-all">
+                            <span>Pay via UPI App</span>
+                            <span className="group-hover:translate-x-2 transition-transform">→</span>
+                        </button>
+
+                        <button onClick={onCancel} className="w-full py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Cancel Order</button>
+                    </div>
+                </div>
+            );
+        case 'REDIRECTING':
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+                    <div className="w-16 h-16 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin mb-6"></div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Connecting App</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Opening your default UPI provider...</p>
+                </div>
+            );
+        case 'WAITING_TRANS_ID':
+            return (
+                <div className="flex-1 flex flex-col p-8 animate-slide-up">
+                    <div className="text-center mb-8">
+                        <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">✍️</div>
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Enter Payment Ref</h3>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2 leading-relaxed">Please paste the Transaction ID or Ref No. from your payment app for Admin verification.</p>
+                    </div>
+                    <div className="space-y-4">
+                        <input type="text" value={transactionId} onChange={e => {setTransactionId(e.target.value); setErrorMsg('');}} placeholder="Transaction ID (e.g. 1234...)" className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 text-center text-base font-black uppercase outline-none focus:border-slate-900 transition-all" />
+                        {errorMsg && <p className="text-[9px] font-black text-red-500 uppercase text-center">{errorMsg}</p>}
+                        <button onClick={handleVerify} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">Confirm & Submit</button>
+                    </div>
+                </div>
+            );
+        case 'VERIFYING':
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+                    <div className="relative w-24 h-24 mx-auto mb-8">
+                        <div className="absolute inset-0 border-4 border-emerald-100 rounded-full"></div>
+                        <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center text-3xl">🛡️</div>
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Admin Checking</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Verifying funds in Escrow Vault...</p>
+                </div>
+            );
+        case 'SUCCESS':
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-10 bg-emerald-600 text-white text-center animate-fade-in">
+                    <div className="w-20 h-20 bg-white text-emerald-600 rounded-full flex items-center justify-center text-4xl mb-8 shadow-2xl">✓</div>
+                    <h2 className="text-3xl font-black uppercase tracking-tighter">Verified</h2>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mt-2">Order Confirmed by Admin</p>
+                </div>
+            );
+        case 'FAILURE':
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mb-8">✕</div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Verification Fail</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{errorMsg}</p>
+                    <button onClick={() => setStep('WAITING_TRANS_ID')} className="mt-8 w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">Try Again</button>
+                </div>
+            );
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-fade-in overflow-hidden">
-      {renderContent()}
+    <div className="fixed inset-0 z-[300] bg-white flex flex-col animate-fade-in">
+        {renderContent()}
     </div>
   );
 };
